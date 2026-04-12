@@ -48,8 +48,8 @@ The project follows a modern decoupled architecture:
 ### Backend Setup
 1. `cd backend`
 2. `pip install -r requirements.txt`
-3. Configure `.env` with `MONGO_URL`, `DB_NAME`, and `JWT_SECRET`.
-4. `python server.py`
+3. Configure `.env` with your live `MONGO_URL` (MongoDB Atlas), `DB_NAME`, and `JWT_SECRET`.
+4. `python server.py` (Local) or use Uvicorn for production.
 
 ### Frontend Setup
 1. `cd frontend`

@@ -1,0 +1,57 @@
+import axios from 'axios';
+
+const BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const headers = () => {
+  const t = localStorage.getItem('barber_token');
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
+
+const api = {
+  // Auth
+  me: () => axios.get(`${BASE}/auth/me`, { headers: headers() }).then(r => r.data),
+
+  // Slots
+  getSlots: (date, slotType) =>
+    axios.get(`${BASE}/slots/available`, { params: { booking_date: date, slot_type: slotType }, headers: headers() }).then(r => r.data),
+
+  // Bookings
+  createBooking: (data) =>
+    axios.post(`${BASE}/bookings`, data, { headers: headers() }).then(r => r.data),
+  myBookings: () =>
+    axios.get(`${BASE}/bookings`, { headers: headers() }).then(r => r.data),
+  cancelBooking: (id) =>
+    axios.post(`${BASE}/bookings/${id}/cancel`, {}, { headers: headers() }).then(r => r.data),
+  rebook: (id, data) =>
+    axios.post(`${BASE}/bookings/${id}/rebook`, data, { headers: headers() }).then(r => r.data),
+
+  // Payments
+  createOrder: (bookingId) =>
+    axios.post(`${BASE}/payments/create-order`, { booking_id: bookingId }, { headers: headers() }).then(r => r.data),
+  verifyPayment: (data) =>
+    axios.post(`${BASE}/payments/verify`, data, { headers: headers() }).then(r => r.data),
+
+  // Wallet
+  getWallet: () =>
+    axios.get(`${BASE}/wallet`, { headers: headers() }).then(r => r.data),
+
+  // Rewards
+  getRewards: () =>
+    axios.get(`${BASE}/rewards`, { headers: headers() }).then(r => r.data),
+  redeem: (rewardId) =>
+    axios.post(`${BASE}/rewards/redeem`, { reward_id: rewardId }, { headers: headers() }).then(r => r.data),
+
+  // Admin
+  adminStats: () =>
+    axios.get(`${BASE}/admin/stats`, { headers: headers() }).then(r => r.data),
+  adminBookings: (status) =>
+    axios.get(`${BASE}/admin/bookings`, { params: status ? { status } : {}, headers: headers() }).then(r => r.data),
+  adminUpdateBooking: (id, status) =>
+    axios.patch(`${BASE}/admin/bookings/${id}`, { status }, { headers: headers() }).then(r => r.data),
+  adminUsers: () =>
+    axios.get(`${BASE}/admin/users`, { headers: headers() }).then(r => r.data),
+  processExpiredWallets: () =>
+    axios.post(`${BASE}/admin/wallet/process-expired`, {}, { headers: headers() }).then(r => r.data),
+};
+
+export default api;

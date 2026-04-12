@@ -1,0 +1,88 @@
+{
+  "theme": {
+    "mode": "dark",
+    "archetype": "Archetype 5: Jewel & Luxury"
+  },
+  "colors": {
+    "primary": "#C5A059",
+    "primary_foreground": "#000000",
+    "background": "#0A0A0A",
+    "foreground": "#FAFAFA",
+    "card": "#141414",
+    "card_foreground": "#FAFAFA",
+    "muted": "#1F1F1F",
+    "muted_foreground": "#A3A3A3",
+    "border": "#262626",
+    "accent": "#C5A059",
+    "accent_foreground": "#000000",
+    "destructive": "#7F1D1D",
+    "destructive_foreground": "#FAFAFA"
+  },
+  "typography": {
+    "heading_font": "Cormorant Garamond",
+    "body_font": "Outfit",
+    "rules": {
+      "h1": "text-4xl sm:text-5xl lg:text-6xl tracking-tighter font-serif",
+      "h2": "text-2xl sm:text-3xl lg:text-4xl tracking-tight font-serif",
+      "h3": "text-xl sm:text-2xl font-serif",
+      "body": "text-base leading-relaxed font-sans",
+      "overline": "uppercase text-xs tracking-[0.2em] font-sans font-semibold text-primary"
+    }
+  },
+  "layout_spacing": {
+    "philosophy": "Generous Spacing (p-8 to p-24) to create a sense of premium luxury.",
+    "marketing_grid": "Bento 'Tetris' Grid for services and rewards. Asymmetry is key. Avoid standard Bootstrap columns.",
+    "dashboard_grid": "Control Room Grid for admin bookings, dense but clean. Flat solid cards with 1px border-white/10.",
+    "containers": "Containers with borders must have internal padding (p-6 or p-8)."
+  },
+  "component_rules": {
+    "forms": "Use Shadcn customized components. Input background muted (#1F1F1F) with subtle borders. Forms must never use native <input>.",
+    "buttons": "Primary button is Gold with Black text. Hover effects must lighten the gold hue. Active state scales down slightly.",
+    "cards": "Subtle border (border-white/10), no heavy shadows in dark mode. Use 1px sharp inner contrast.",
+    "icons": "Use @phosphor-icons/react for a premium duotone look, or lucide-react if constrained.",
+    "overlays": "Hero images must have a gradient overlay (e.g., bg-gradient-to-r from-black/80 to-transparent) to ensure text contrast. Max opacity black/50 for solid overlays.",
+    "navigation": "Header must use Crystal Glassmorphism (backdrop-blur-xl bg-black/60) with a 1px delicate inner stroke (border-white/10). Sticky z-50."
+  },
+  "media": {
+    "hero_barber_tools": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/aa14446b-5b3b-47d1-8c6d-37005543f770/images/0d1b447c7cb68a4e127a5f9be343b04cbeaddad236fe8ed9b03b29e5c701a7a1.png",
+      "category": "hero_background",
+      "description": "Cinematic close-up of premium barber tools. Use with a dark gradient overlay on the left side to keep text readable."
+    },
+    "service_haircut": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/aa14446b-5b3b-47d1-8c6d-37005543f770/images/779fd6aa0db56e6a3e06a48774187417eb408c81c88e7e6c05d660655b2b6398.png",
+      "category": "service",
+      "description": "Macro photography of precise fade haircut. Perfect for the main service card."
+    },
+    "service_beard": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/aa14446b-5b3b-47d1-8c6d-37005543f770/images/afacd304082ec7e35786982db58375c2e94b078b1888748c171d935dd84cf429.png",
+      "category": "service",
+      "description": "Close up of hot towel beard shave. Use in Bento grid beside haircut."
+    },
+    "texture_dark_gold": {
+      "url": "https://static.prod-images.emergentagent.com/jobs/aa14446b-5b3b-47d1-8c6d-37005543f770/images/205fed32e8f839beaa93a708de0153bc01d39de2aafd319db6dd2a1c50962bf8.png",
+      "category": "background_texture",
+      "description": "Abstract luxury dark background with gold veins for the Pricing/Booking or Rewards section background."
+    },
+    "barber_interior_1": {
+      "url": "https://images.unsplash.com/photo-1675599193990-33d71150902b?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHw0fHxwcmVtaXVtJTIwZGFyayUyMGJhcmJlciUyMHNob3AlMjBpbnRlcmlvcnxlbnwwfHx8fDE3NzU3NTY5MzV8MA&ixlib=rb-4.1.0&q=85",
+      "category": "about_location",
+      "description": "Premium dark barber shop interior. Best for the location/about section."
+    },
+    "barber_chair": {
+      "url": "https://images.unsplash.com/photo-1590360316066-357b23e0dd15?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTN8MHwxfHNlYXJjaHwzfHxwcmVtaXVtJTIwZGFyayUyMGJhcmJlciUyMHNob3AlMjBpbnRlcmlvcnxlbnwwfHx8fDE3NzU3NTY5MzV8MA&ixlib=rb-4.1.0&q=85",
+      "category": "aesthetic",
+      "description": "Premium vintage padded armchair in dark room. Great for visual break or policy section."
+    }
+  },
+  "specific_pages": {
+    "landing": "Asymmetrical hero with deep typography. Use 'texture_dark_gold' as background for the Rewards section. Heavy reliance on typography. Use Marquee for brand keywords (e.g., PRECISION • LUXURY • NO WAITING) using thin serif text.",
+    "booking": "Clean step-by-step UI. 'Control Room' dense grid for slot selection (Morning/Standard/Emergency/Right Now). High contrast for time slots to prevent errors.",
+    "dashboard_customer": "Personalized 'black card' style design for digital wallet and rewards. Display points like a premium status tier.",
+    "dashboard_admin": "Dense data tables (Shadcn), high utility, strict grid hierarchy, 1px border cards, no messy shadows."
+  },
+  "testing": {
+    "requirements": "All interactive and key informational elements MUST include a data-testid attribute in kebab-case (e.g., data-testid='booking-submit-btn')."
+  },
+  "instructions_to_main_agent": "Implement a full dark mode setup using the provided colors mapped to CSS variables in index.css. Use Cormorant Garamond for headings and Outfit for body. Build Shadcn UI primitives for forms, dialogs, and buttons, overriding default styles to match the 'Jewel & Luxury' dark/gold theme. Apply a 1px border (border-white/10) to cards instead of default shadows. Use the provided media URLs specifically based on their categories. Add generous padding. ENSURE EVERY INTERACTIVE ELEMENT HAS data-testid."
+}

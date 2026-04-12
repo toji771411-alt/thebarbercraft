@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../utils/api';
 import { Users, Calendar, CheckCircle, AlertTriangle, DollarSign, RefreshCw } from 'lucide-react';
 
@@ -31,16 +31,16 @@ export default function AdminDashboard() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [s, b, u] = await Promise.all([api.adminStats(), api.adminBookings(statusFilter), api.adminUsers()]);
       setStats(s); setBookings(b); setUsers(u);
     } catch (_) {}
     setLoading(false);
-  };
+  }, [statusFilter]);
 
-  useEffect(() => { fetchData(); }, [statusFilter]);
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleStatusUpdate = async (bookingId, newStatus) => {
     setUpdateLoading(bookingId);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
@@ -29,7 +29,7 @@ export default function CustomerDashboard() {
 
   const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(''), 3000); };
 
-  const fetchAll = async () => {
+  const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
       const [b, r, w] = await Promise.all([api.myBookings(), api.getRewards(), api.getWallet()]);
@@ -37,9 +37,9 @@ export default function CustomerDashboard() {
       await refreshUser();
     } catch (_) {}
     setLoading(false);
-  };
+  }, [refreshUser]);
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const handleCancel = async (id) => {
     if (!window.confirm('Cancel this booking?')) return;

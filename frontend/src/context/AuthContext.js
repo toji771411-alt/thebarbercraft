@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useEffect } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -8,10 +8,10 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const getHeaders = () => {
+  const getHeaders = useCallback(() => {
     const token = localStorage.getItem('barber_token');
     return token ? { Authorization: `Bearer ${token}` } : {};
-  };
+  }, []);
 
   useEffect(() => {
     const token = localStorage.getItem('barber_token');
@@ -25,33 +25,33 @@ export function AuthProvider({ children }) {
     }
   }, []);
 
-  const login = async (email, password) => {
+  const login = useCallback(async (email, password) => {
     const { data } = await axios.post(`${API}/auth/login`, { email, password });
     localStorage.setItem('barber_token', data.token);
     setUser(data.user);
     return data.user;
-  };
+  }, []);
 
-  const register = async (name, email, phone, password) => {
+  const register = useCallback(async (name, email, phone, password) => {
     const { data } = await axios.post(`${API}/auth/register`, { name, email, phone, password });
     localStorage.setItem('barber_token', data.token);
     setUser(data.user);
     return data.user;
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = useCallback(() => {
     localStorage.removeItem('barber_token');
     setUser(null);
-  };
+  }, []);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     const token = localStorage.getItem('barber_token');
     if (!token) return;
     try {
       const { data } = await axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
       setUser(data);
     } catch (_) {}
-  };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, login, register, logout, getHeaders, refreshUser }}>

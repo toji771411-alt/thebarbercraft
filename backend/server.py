@@ -13,15 +13,24 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId
 import os, logging, bcrypt, jwt, uuid
 
-mongo_url = os.environ['MONGO_URL']
+# Required Env Vars
+def get_env(k, default=None):
+    v = os.environ.get(k, default)
+    if not v:
+        logging.error(f"CRITICAL: Missing environment variable {k}")
+        raise RuntimeError(f"Missing {k}")
+    return v
+
+mongo_url = get_env('MONGO_URL')
 db_client = AsyncIOMotorClient(mongo_url)
-db = db_client[os.environ['DB_NAME']]
+db = db_client[get_env('DB_NAME', 'barbercraft')]
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-JWT_SECRET = os.environ['JWT_SECRET']
+JWT_SECRET = get_env('JWT_SECRET')
 JWT_ALG = "HS256"
+
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)

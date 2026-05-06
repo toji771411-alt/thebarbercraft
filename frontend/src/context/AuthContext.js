@@ -62,18 +62,34 @@ export function AuthProvider({ children }) {
 
   const login = async (email, password) => {
     console.log('Attempting login for:', email);
-    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) {
-      console.error('Login error:', error.message);
-      throw error;
-    }
     
-    console.log('Auth successful, fetching profile...');
-    const profile = await fetchProfile(data.user.id);
-    const fullUser = { ...data.user, ...profile };
-    setUser(fullUser);
-    console.log('Login complete!');
-    return fullUser;
+    // Create a timeout promise
+    const timeout = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Login timed out. Please check your internet connection or try again.')), 10000)
+    );
+
+    try {
+      // Race the login against the timeout
+      const { data, error } = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        timeout
+      ]);
+
+      if (error) {
+        console.error('Login error:', error.message);
+        throw error;
+      }
+      
+      console.log('Auth successful, fetching profile...');
+      const profile = await fetchProfile(data.user.id);
+      const fullUser = { ...data.user, ...profile };
+      setUser(fullUser);
+      console.log('Login complete!');
+      return fullUser;
+    } catch (err) {
+      console.error('Login failed:', err.message);
+      throw err;
+    }
   };
 
   const loginWithGoogle = useCallback(async () => {

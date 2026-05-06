@@ -600,14 +600,22 @@ async def create_subscription_order(request: Request):
     key_id = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SlyVTtWcGzaPhX")
     key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "9HfkFb4RCN0rbmC9A2EVBh54")
     
-    import razorpay
-    rz = razorpay.Client(auth=(key_id, key_secret))
-    order = rz.order.create({
-        "amount": amount * 100,
-        "currency": "INR", "payment_capture": 1,
-        "notes": {"type": "subscription", "user_id": user["id"]}
-    })
-    return {"order_id": order["id"], "amount": amount, "key_id": key_id}
+    try:
+        import razorpay
+        rz = razorpay.Client(auth=(key_id, key_secret))
+        order_data = {
+            "amount": amount * 100,
+            "currency": "INR",
+            "payment_capture": 1,
+            "notes": {"type": "subscription", "user_id": user["id"]}
+        }
+        order = rz.order.create(order_data)
+        return {"order_id": order["id"], "amount": amount, "key_id": key_id, "mock": False}
+    except Exception as e:
+        logger.error(f"Subscription order error: {str(e)}")
+        # Fallback to mock if Razorpay fails
+        oid = f"sub_{uuid.uuid4().hex[:16]}"
+        return {"order_id": oid, "amount": amount, "key_id": "mock", "mock": True}
 
 @api_router.post("/subscription/verify")
 async def verify_subscription_payment(data: dict, request: Request):

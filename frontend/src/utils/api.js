@@ -73,6 +73,16 @@ const api = {
     axios.delete(`${BASE}/admin/users/${userId}`, { headers: headers() }).then(r => r.data),
   processExpiredWallets: () =>
     axios.post(`${BASE}/admin/wallet/process-expired`, {}, { headers: headers() }).then(r => r.data),
+  
+  // New Admin Features
+  getBlockedDays: () =>
+    axios.get(`${BASE}/admin/blocked-days`, { headers: headers() }).then(r => r.data),
+  blockDay: (date, reason) =>
+    axios.post(`${BASE}/admin/blocked-days`, { date, reason }, { headers: headers() }).then(r => r.data),
+  unblockDay: (date) =>
+    axios.delete(`${BASE}/admin/blocked-days/${date}`, { headers: headers() }).then(r => r.data),
+  addPoints: (userId, amount, points) =>
+    axios.post(`${BASE}/admin/users/${userId}/rewards/add`, { amount, points }, { headers: headers() }).then(r => r.data),
 };
 
 export default api;

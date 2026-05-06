@@ -177,6 +177,11 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
     except ValueError:
         raise HTTPException(400, "Use YYYY-MM-DD format")
 
+    # Check if day is blocked
+    blocked = supabase.table("blocked_days").select("*").eq("date", booking_date).execute()
+    if blocked.data:
+        return {"date": booking_date, "slot_type": slot_type, "blocked": True, "reason": blocked.data[0].get("reason", "Lucky is not available")}
+
     dow = d.weekday()  # 0=Mon
     if slot_type == "standard":
         times = STD_MON if dow == 0 else STD_TUE_SUN
@@ -187,10 +192,23 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
     else:
         return {"date": booking_date, "slot_type": slot_type, "available_slots": ["right_now"]}
 
+    # Filter out past times if date is today
+    now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
+    today_ist = now_ist.date()
+    
+    available_times = []
+    for t in times:
+        if d == today_ist:
+            h, m = map(int, t.split(':'))
+            slot_time = now_ist.replace(hour=h, minute=m, second=0, microsecond=0)
+            if slot_time <= now_ist:
+                continue
+        available_times.append(t)
+
     booked = supabase.table("bookings").select("time_slot").eq("date", booking_date).eq("slot_type", slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
     taken = {b["time_slot"] for b in booked.data}
-    return {"date": booking_date, "slot_type": slot_type,
-            "slots": [{"time": t, "available": t not in taken} for t in times]}
+    return {"date": booking_date, "slot_type": slot_type, "blocked": False,
+            "slots": [{"time": t, "available": t not in taken} for t in available_times]}
 
 # ── Bookings ──────────────────────────────────────────────────────────────────
 class BookingIn(BaseModel):
@@ -683,6 +701,44 @@ async def admin_update_rewards(user_id: str, data: RewardsUpdate, request: Reque
     await admin_user(request)
     supabase.table("profiles").update({"rewards_points": data.points}).eq("id", user_id).execute()
     return {"message": "Rewards points updated"}
+
+class PointsAddIn(BaseModel):
+    amount: float
+    points: int
+
+@api_router.post("/admin/users/{user_id}/rewards/add")
+async def admin_add_rewards(user_id: str, data: PointsAddIn, request: Request):
+    await admin_user(request)
+    # Get current points
+    res = supabase.table("profiles").select("rewards_points").eq("id", user_id).single().execute()
+    if not res.data:
+        raise HTTPException(404, "User not found")
+    new_points = res.data["rewards_points"] + data.points
+    supabase.table("profiles").update({"rewards_points": new_points}).eq("id", user_id).execute()
+    return {"message": f"Added {data.points} points for ₹{data.amount}", "new_balance": new_points}
+
+# ── Blocked Days ─────────────────────────────────────────────────────────────
+@api_router.get("/admin/blocked-days")
+async def get_blocked_days(request: Request):
+    await admin_user(request)
+    res = supabase.table("blocked_days").select("*").order("date").execute()
+    return res.data
+
+class BlockDayIn(BaseModel):
+    date: str
+    reason: Optional[str] = "Lucky is not available"
+
+@api_router.post("/admin/blocked-days")
+async def block_day(data: BlockDayIn, request: Request):
+    await admin_user(request)
+    supabase.table("blocked_days").insert({"date": data.date, "reason": data.reason}).execute()
+    return {"message": f"Day {data.date} blocked"}
+
+@api_router.delete("/admin/blocked-days/{date}")
+async def unblock_day(date: str, request: Request):
+    await admin_user(request)
+    supabase.table("blocked_days").delete().eq("date", date).execute()
+    return {"message": f"Day {date} unblocked"}
 
 @api_router.delete("/admin/users/{user_id}")
 async def admin_delete_user(user_id: str, request: Request):

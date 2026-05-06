@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../utils/api';
 import { ChevronLeft, ChevronRight, Check, Clock, CreditCard, AlertCircle, Star, Plus } from 'lucide-react';
-import { format, addDays, isBefore, startOfDay } from 'date-fns';
+import { format, addDays, isBefore, startOfDay, eachDayOfInterval, startOfMonth, endOfMonth, isSameDay } from 'date-fns';
 
 const SERVICES = [
   { id: 'haircut', name: 'Haircut', price: 300, points: 10, desc: 'Precision fade & styling' },
@@ -61,8 +61,13 @@ export default function BookingPage() {
   const [walletBalance, setWalletBalance] = useState(0);
   const [walletAddons, setWalletAddons] = useState([]);
 
+  const [blockedStatus, setBlockedStatus] = useState(null);
+
   const today = startOfDay(new Date());
-  const calendarDays = Array.from({ length: 2 }, (_, i) => addDays(today, i));
+  const calendarDays = eachDayOfInterval({
+    start: startOfMonth(today),
+    end: endOfMonth(today)
+  });
 
   useEffect(() => {
     if (step === 2 && !rewardsInfo) {
@@ -82,9 +87,16 @@ export default function BookingPage() {
 
   useEffect(() => {
     if (!selectedDate || !slotType || slotType === 'right_now') return;
-    setSlotsLoading(true); setTimeSlot('');
+    setSlotsLoading(true); setTimeSlot(''); setBlockedStatus(null);
     api.getSlots(selectedDate, slotType)
-      .then(d => setAllSlots(d.slots || []))
+      .then(d => {
+        if (d.blocked) {
+          setBlockedStatus(d.reason || "Lucky is not available today");
+          setAllSlots([]);
+        } else {
+          setAllSlots(d.slots || []);
+        }
+      })
       .catch(() => setAllSlots([]))
       .finally(() => setSlotsLoading(false));
   }, [selectedDate, slotType]);
@@ -384,18 +396,25 @@ export default function BookingPage() {
           <div data-testid="step-date-time" className="space-y-6">
             <div>
               <p className="text-xs uppercase tracking-[0.2em] text-black/40 mb-3 font-semibold">Select Date</p>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-4 sm:grid-cols-7 gap-2">
                 {calendarDays.map((day, i) => {
                   const ds = format(day, 'yyyy-MM-dd');
                   const dom = format(day, 'd');
                   const mon = format(day, 'MMM');
                   const isSelected = selectedDate === ds;
                   const isPast = isBefore(day, today);
+                  const isBookable = isSameDay(day, today) || isSameDay(day, addDays(today, 1));
+                  
                   return (
-                    <button key={i} data-testid={`date-btn-${ds}`} disabled={isPast} onClick={() => { setSelectedDate(ds); setTimeSlot(''); }}
-                      className={`p-4 rounded-xl text-center transition-all ${isPast ? 'opacity-20 cursor-not-allowed text-black/30' : isSelected ? 'bg-black text-white' : 'bg-gray-50 border border-gray-200 hover:border-black text-black/70'}`}>
-                      <div className="font-serif text-lg font-bold">{dom}</div>
-                      <div className="text-xs uppercase tracking-widest opacity-70">{mon}</div>
+                    <button key={i} data-testid={`date-btn-${ds}`} 
+                      disabled={!isBookable} 
+                      onClick={() => { setSelectedDate(ds); setTimeSlot(''); }}
+                      className={`h-14 rounded-lg flex flex-col items-center justify-center transition-all border-2 
+                        ${!isBookable ? 'bg-gray-50 border-transparent text-black/10 cursor-not-allowed opacity-30' : 
+                          isSelected ? 'bg-black border-black text-white scale-105 z-10' : 
+                          'bg-white border-gray-100 hover:border-black text-black/70'}`}>
+                      <div className="text-xs uppercase tracking-tighter opacity-50 scale-75">{mon}</div>
+                      <div className="font-bold text-base leading-none">{dom}</div>
                     </button>
                   );
                 })}
@@ -409,6 +428,14 @@ export default function BookingPage() {
                 </p>
                 {slotsLoading ? (
                   <div className="flex items-center gap-2 text-black/40 text-sm"><div className="animate-spin w-4 h-4 border border-black border-t-transparent rounded-full" /> Loading...</div>
+                ) : blockedStatus ? (
+                  <div className="p-6 bg-red-50 border border-red-200 rounded-xl flex items-center gap-3 text-red-700">
+                    <AlertCircle size={20} />
+                    <div>
+                      <p className="font-bold text-sm">Service Unavailable</p>
+                      <p className="text-xs">{blockedStatus}</p>
+                    </div>
+                  </div>
                 ) : allSlots.length === 0 ? (
                   <p data-testid="no-slots-msg" className="text-black/40 text-sm">No available slots for this date. Try another date.</p>
                 ) : (

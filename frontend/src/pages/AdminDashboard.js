@@ -70,6 +70,9 @@ export default function AdminDashboard() {
   const [toast, setToast] = useState('');
   const [updateLoading, setUpdateLoading] = useState('');
   const [customerSearch, setCustomerSearch] = useState('');
+  const [blockedDays, setBlockedDays] = useState([]);
+  const [blockDate, setBlockDate] = useState('');
+  const [blockReason, setBlockReason] = useState('Lucky is not available');
 
   // Admin Booking Form State
   const [newBooking, setNewBooking] = useState({
@@ -98,12 +101,13 @@ export default function AdminDashboard() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const [s, b, u] = await Promise.all([
+      const [s, b, u, bl] = await Promise.all([
         api.adminStats(), 
         api.adminBookings(statusFilter, userFilter?.id), 
-        api.adminUsers()
+        api.adminUsers(),
+        api.getBlockedDays()
       ]);
-      setStats(s); setBookings(b); setUsers(u);
+      setStats(s); setBookings(b); setUsers(u); setBlockedDays(bl);
     } catch (_) {}
     setLoading(false);
   }, [statusFilter, userFilter]);
@@ -169,6 +173,49 @@ export default function AdminDashboard() {
       fetchData();
     } catch (err) {
       showToast(err?.response?.data?.detail || 'Delete failed');
+    } finally {
+      setUpdateLoading('');
+    }
+  };
+
+  const handleAddPoints = async (userId, amount) => {
+    const pts = Math.floor(amount / 100) * 10;
+    if (pts <= 0) return showToast('Amount too low for points');
+    setUpdateLoading(`points_${userId}`);
+    try {
+      await api.addPoints(userId, amount, pts);
+      showToast(`Added ${pts} points for ₹${amount}`);
+      fetchData();
+    } catch (err) {
+      showToast('Failed to add points');
+    } finally {
+      setUpdateLoading('');
+    }
+  };
+
+  const handleBlockDay = async () => {
+    if (!blockDate) return;
+    setUpdateLoading('blocking');
+    try {
+      await api.blockDay(blockDate, blockReason);
+      showToast('Day blocked');
+      setBlockDate('');
+      fetchData();
+    } catch (_) {
+      showToast('Failed to block day');
+    } finally {
+      setUpdateLoading('');
+    }
+  };
+
+  const handleUnblockDay = async (date) => {
+    setUpdateLoading(`unblock_${date}`);
+    try {
+      await api.unblockDay(date);
+      showToast('Day unblocked');
+      fetchData();
+    } catch (_) {
+      showToast('Failed to unblock day');
     } finally {
       setUpdateLoading('');
     }
@@ -271,6 +318,7 @@ export default function AdminDashboard() {
           {[
             ['overview','Bookings'],
             ['customers','Customers'],
+            ['availability','Availability'],
             ['new_booking','New Booking']
           ].map(([id,label]) => (
             <button key={id} data-testid={`admin-tab-${id}`} onClick={() => setTab(id)}
@@ -454,7 +502,31 @@ export default function AdminDashboard() {
                             </div>
                           </div>
 
-                          <div className="flex justify-between items-center pt-2 border-t border-gray-200">
+                          <div className="mt-4 p-4 bg-yellow-50 border border-yellow-100 rounded-xl">
+                            <p className="text-[10px] font-black uppercase tracking-widest text-yellow-700 mb-2">Offline Points Calculator (₹100 = 10 pts)</p>
+                            <div className="flex gap-2">
+                              <input type="number" placeholder="Enter Amount Paid Offline (₹)"
+                                className="flex-1 bg-white border border-yellow-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-yellow-500"
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') {
+                                    handleAddPoints(u.id, e.target.value);
+                                    e.target.value = '';
+                                  }
+                                }}
+                              />
+                              <button 
+                                onClick={(e) => {
+                                  const inp = e.target.previousSibling;
+                                  handleAddPoints(u.id, inp.value);
+                                  inp.value = '';
+                                }}
+                                className="px-4 py-2 bg-yellow-600 text-white text-[10px] font-bold uppercase rounded-lg hover:bg-yellow-700 transition-all">
+                                Add Points
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="flex justify-between items-center pt-4 mt-4 border-t border-gray-200">
                             <button 
                               type="button"
                               onClick={() => {
@@ -532,6 +604,57 @@ export default function AdminDashboard() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* Availability Tab */}
+        {tab === 'availability' && (
+          <div className="space-y-8">
+            <div className="bg-white border border-gray-200 rounded-2xl p-6">
+              <h2 className="font-serif text-2xl text-black mb-1">Block Availability</h2>
+              <p className="text-black/40 text-sm mb-6 font-medium uppercase tracking-wider">Prevent bookings on specific days</p>
+              
+              <div className="flex flex-col sm:flex-row gap-4">
+                <div className="flex-1">
+                  <label className="block text-[10px] uppercase tracking-wider text-black/40 mb-1 font-bold">Select Date</label>
+                  <input type="date" value={blockDate} onChange={e => setBlockDate(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-black" />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-[10px] uppercase tracking-wider text-black/40 mb-1 font-bold">Reason (Shown to User)</label>
+                  <input type="text" value={blockReason} onChange={e => setBlockReason(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-black" />
+                </div>
+                <div className="flex items-end">
+                  <button onClick={handleBlockDay} disabled={updateLoading === 'blocking'}
+                    className="px-8 py-3.5 bg-black text-white text-[10px] font-bold uppercase tracking-widest rounded-xl hover:bg-gray-800 disabled:opacity-50 transition-all">
+                    {updateLoading === 'blocking' ? 'Blocking...' : 'Block Day'}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h3 className="text-xs uppercase tracking-[0.2em] text-black/40 font-bold mb-4">Currently Blocked Days</h3>
+              {blockedDays.length === 0 ? (
+                <p className="text-black/30 text-sm italic">No days are currently blocked.</p>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {blockedDays.map(d => (
+                    <div key={d.date} className="p-4 bg-red-50 border border-red-100 rounded-xl flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-black">{format(new Date(d.date), 'EEE, MMM d, yyyy')}</p>
+                        <p className="text-xs text-red-600">{d.reason}</p>
+                      </div>
+                      <button onClick={() => handleUnblockDay(d.date)}
+                        className="p-2 text-red-400 hover:text-red-700 hover:bg-white rounded-full transition-all">
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         )}
 

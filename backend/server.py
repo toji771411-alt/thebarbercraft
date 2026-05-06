@@ -631,7 +631,7 @@ async def verify_subscription_payment(data: dict, request: Request):
     supabase.table("profiles").update({
         "is_subscriber": True,
         "subscription_expiry": expiry,
-        "haircuts_left": 1,
+        "haircuts_left": 2,
         "beard_trims_left": 1,
         "rewards_points": user.get("rewards_points", 0) + 50 # Bonus points for subscribing
     }).eq("id", user["id"]).execute()

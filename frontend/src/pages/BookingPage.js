@@ -410,10 +410,10 @@ export default function BookingPage() {
                       disabled={!isBookable} 
                       onClick={() => { setSelectedDate(ds); setTimeSlot(''); }}
                       className={`h-14 rounded-lg flex flex-col items-center justify-center transition-all border-2 
-                        ${!isBookable ? 'bg-gray-50 border-transparent text-black/10 cursor-not-allowed opacity-30' : 
+                        ${!isBookable ? 'bg-gray-50/50 border-transparent text-black/20 cursor-not-allowed' : 
                           isSelected ? 'bg-black border-black text-white scale-105 z-10' : 
                           'bg-white border-gray-100 hover:border-black text-black/70'}`}>
-                      <div className="text-xs uppercase tracking-tighter opacity-50 scale-75">{mon}</div>
+                      <div className={`text-[10px] uppercase tracking-tighter font-bold ${!isBookable ? 'opacity-30' : 'opacity-50'}`}>{mon}</div>
                       <div className="font-bold text-base leading-none">{dom}</div>
                     </button>
                   );

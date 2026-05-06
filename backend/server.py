@@ -192,18 +192,22 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
     else:
         return {"date": booking_date, "slot_type": slot_type, "available_slots": ["right_now"]}
 
-    # Filter out past times if date is today
+    # Filter out past times ONLY if the date is Today in IST
     now_ist = datetime.now(timezone.utc) + timedelta(hours=5, minutes=30)
     today_ist = now_ist.date()
     
     available_times = []
     for t in times:
-        if d == today_ist:
+        if d < today_ist: # Past day
+            continue
+        if d == today_ist: # Today: only show future slots
             h, m = map(int, t.split(':'))
             slot_time = now_ist.replace(hour=h, minute=m, second=0, microsecond=0)
             if slot_time <= now_ist:
                 continue
         available_times.append(t)
+
+    logger.info(f"Slots for {booking_date}: {available_times}")
 
     booked = supabase.table("bookings").select("time_slot").eq("date", booking_date).eq("slot_type", slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
     taken = {b["time_slot"] for b in booked.data}

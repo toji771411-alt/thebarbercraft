@@ -376,6 +376,7 @@ class OrderIn(BaseModel):
 
 @api_router.post("/payments/create-order")
 async def create_order(data: OrderIn, request: Request):
+    user = await current_user(request)
     res = supabase.table("bookings").select("*").eq("booking_id", data.booking_id).single().execute()
     b = res.data
     if not b or b["user_id"] != user["id"]:

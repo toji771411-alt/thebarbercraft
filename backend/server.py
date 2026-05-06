@@ -741,17 +741,30 @@ async def process_expired(request: Request):
 # ── App setup ─────────────────────────────────────────────────────────────────
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
+    origin = request.headers.get("origin", "*")
+    
     if request.method == "OPTIONS":
         response = Response()
-        response.headers["Access-Control-Allow-Origin"] = "*"
+        response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Methods"] = "*"
         response.headers["Access-Control-Allow-Headers"] = "*"
+        response.headers["Access-Control-Allow-Credentials"] = "true"
         return response
         
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
+    try:
+        response = await call_next(request)
+    except Exception as e:
+        logger.error(f"Global error: {str(e)}")
+        from fastapi.responses import JSONResponse
+        response = JSONResponse(
+            status_code=500,
+            content={"detail": str(e), "type": "GlobalError"}
+        )
+        
+    response.headers["Access-Control-Allow-Origin"] = origin
     response.headers["Access-Control-Allow-Methods"] = "*"
     response.headers["Access-Control-Allow-Headers"] = "*"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
 
 app.include_router(api_router)

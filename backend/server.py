@@ -191,6 +191,13 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
 
     logger.info(f"Slots for {booking_date}: {available_times}")
 
+    # Check if day is blocked by admin
+    blocked_res = supabase.table("blocked_days").select("*").eq("date", booking_date).execute()
+    if blocked_res.data:
+        return {"date": booking_date, "slot_type": slot_type, "blocked": True, 
+                "reason": blocked_res.data[0].get("reason", "Barber is not available today"),
+                "slots": []}
+
     booked = supabase.table("bookings").select("time_slot").eq("date", booking_date).eq("slot_type", slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
     taken = {b["time_slot"] for b in booked.data}
     return {"date": booking_date, "slot_type": slot_type, "blocked": False,

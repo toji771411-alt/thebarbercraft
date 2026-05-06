@@ -199,8 +199,17 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
                 "reason": blocked_res.data[0].get("reason", "Barber is not available today"),
                 "slots": []}
 
-    booked = supabase.table("bookings").select("time_slot").eq("date", booking_date).eq("slot_type", slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
-    taken = {b["time_slot"] for b in booked.data}
+    expiry_limit = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+    booked = supabase.table("bookings").select("time_slot, status, created_at")\
+        .eq("date", booking_date).eq("slot_type", slot_type)\
+        .in_("status", ["pending_payment", "confirmed"]).execute()
+    
+    taken = set()
+    for b in booked.data:
+        if b["status"] == "confirmed":
+            taken.add(b["time_slot"])
+        elif b["status"] == "pending_payment" and b["created_at"] > expiry_limit:
+            taken.add(b["time_slot"])
     return {"date": booking_date, "slot_type": slot_type, "blocked": False,
             "slots": [{"time": t, "available": t not in taken} for t in available_times]}
 
@@ -282,12 +291,19 @@ async def create_booking(data: BookingIn, request: Request):
     points_to_earn = base_pts + addon_pts
 
     if data.slot_type != "right_now":
-        existing_booking = supabase.table("bookings").select("*").eq("date", data.date).eq("time_slot", data.time_slot).eq("slot_type", data.slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
+        expiry_limit = (datetime.now(timezone.utc) - timedelta(minutes=15)).isoformat()
+        existing_booking = supabase.table("bookings").select("*")\
+            .eq("date", data.date).eq("time_slot", data.time_slot).eq("slot_type", data.slot_type)\
+            .in_("status", ["pending_payment", "confirmed"]).execute()
+            
         if existing_booking.data:
             b = existing_booking.data[0]
-            if b["status"] == "pending_payment" and b["user_id"] == user["id"]:
-                # Clean up the ghost pending booking so they can try again
-                supabase.table("bookings").delete().eq("booking_id", b["booking_id"]).execute()
+            # Ignore expired pending payments or same-user retries
+            if b["status"] == "pending_payment":
+                if b["user_id"] == user["id"] or b["created_at"] < expiry_limit:
+                    supabase.table("bookings").delete().eq("booking_id", b["booking_id"]).execute()
+                else:
+                    raise HTTPException(400, "Slot is currently being booked by another user. Please wait a few minutes.")
             else:
                 raise HTTPException(400, "Slot already booked")
 

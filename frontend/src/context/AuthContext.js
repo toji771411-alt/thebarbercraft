@@ -60,11 +60,21 @@ export function AuthProvider({ children }) {
     return session ? { Authorization: `Bearer ${session.access_token}` } : {};
   }, [session]);
 
-  const login = useCallback(async (email, password) => {
+  const login = async (email, password) => {
+    console.log('Attempting login for:', email);
     const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-    if (error) throw error;
-    return data.user;
-  }, []);
+    if (error) {
+      console.error('Login error:', error.message);
+      throw error;
+    }
+    
+    console.log('Auth successful, fetching profile...');
+    const profile = await fetchProfile(data.user.id);
+    const fullUser = { ...data.user, ...profile };
+    setUser(fullUser);
+    console.log('Login complete!');
+    return fullUser;
+  };
 
   const loginWithGoogle = useCallback(async () => {
     const { data, error } = await supabase.auth.signInWithOAuth({

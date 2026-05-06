@@ -88,8 +88,10 @@ export default function BookingPage() {
   useEffect(() => {
     if (!selectedDate || !slotType || slotType === 'right_now') return;
     setSlotsLoading(true); setTimeSlot(''); setBlockedStatus(null);
+    console.log(`Fetching slots for ${selectedDate}, type: ${slotType}`);
     api.getSlots(selectedDate, slotType)
       .then(d => {
+        console.log('Slots API Response:', d);
         if (d.blocked) {
           setBlockedStatus(d.reason || "Lucky is not available today");
           setAllSlots([]);
@@ -97,7 +99,10 @@ export default function BookingPage() {
           setAllSlots(d.slots || []);
         }
       })
-      .catch(() => setAllSlots([]))
+      .catch(err => {
+        console.error('Slots API Error:', err);
+        setAllSlots([]);
+      })
       .finally(() => setSlotsLoading(false));
   }, [selectedDate, slotType]);
 

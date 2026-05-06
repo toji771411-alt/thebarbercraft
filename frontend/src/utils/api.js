@@ -1,5 +1,7 @@
 import axios from 'axios';
-const BASE = process.env.REACT_APP_API_URL || 'https://barber-craft-backend.onrender.com/api';
+const BASE = window.location.hostname === 'localhost' 
+  ? 'http://localhost:8000/api' 
+  : (process.env.REACT_APP_API_URL || 'https://thebarbercraft-0xi9.onrender.com/api');
 let authToken = localStorage.getItem('barber_token');
 
 export const setAuthToken = (token) => {
@@ -49,8 +51,10 @@ const api = {
     axios.get(`${BASE}/rewards/my-redemptions`, { headers: headers() }).then(r => r.data),
   applyRedemption: (redemptionId, bookingId) =>
     axios.post(`${BASE}/rewards/apply`, { redemption_id: redemptionId, booking_id: bookingId }, { headers: headers() }).then(r => r.data),
-  buySubscription: () =>
-    axios.post(`${BASE}/subscription/buy`, {}, { headers: headers() }).then(r => r.data),
+  buySubscriptionOrder: () =>
+    axios.post(`${BASE}/subscription/create-order`, {}, { headers: headers() }).then(r => r.data),
+  verifySubscription: (data) =>
+    axios.post(`${BASE}/subscription/verify`, data, { headers: headers() }).then(r => r.data),
 
   // Admin
   adminStats: () =>

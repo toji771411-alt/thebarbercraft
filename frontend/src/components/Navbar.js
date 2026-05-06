@@ -19,11 +19,11 @@ export default function Navbar() {
   return (
     <>
       <nav data-testid="navbar" className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-xl border-b border-black/8 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center justify-between h-24">
 
           {/* Logo */}
           <Link to="/" data-testid="nav-logo" className="flex items-center gap-2.5 group">
-            <img src={logo} alt="The Barber Craft" className="h-10 w-auto object-contain" />
+            <img src={logo} alt="The Barber Craft" className="h-20 w-auto object-contain" />
           </Link>
 
 

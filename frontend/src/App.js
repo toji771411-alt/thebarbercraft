@@ -5,6 +5,9 @@ import LandingPage from './pages/LandingPage';
 import BookingPage from './pages/BookingPage';
 import CustomerDashboard from './pages/CustomerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
+import RewardsPage from './pages/RewardsPage';
+import ServicesPage from './pages/ServicesPage';
+import PoliciesPage from './pages/PoliciesPage';
 import './App.css';
 
 function ProtectedRoute({ children }) {
@@ -45,6 +48,9 @@ function AppRoutes() {
         <Route path="/admin" element={
           <AdminRoute><AdminDashboard /></AdminRoute>
         } />
+        <Route path="/rewards" element={<RewardsPage />} />
+        <Route path="/services" element={<ServicesPage />} />
+        <Route path="/policies" element={<PoliciesPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>

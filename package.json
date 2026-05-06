@@ -1,0 +1,30 @@
+{
+  "name": "barbar-main",
+  "version": "1.0.0",
+  "description": "BarberCraft is a sophisticated, full-stack barber shop management application designed for seamless appointment booking, customer loyalty management, and administrative oversight.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "start": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "cd backend && uvicorn server:app --reload",
+    "client": "cd frontend && npm start",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/toji771411-alt/barber-1.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/toji771411-alt/barber-1/issues"
+  },
+  "homepage": "https://github.com/toji771411-alt/barber-1#readme",
+  "devDependencies": {
+    "concurrently": "^9.2.1"
+  }
+}

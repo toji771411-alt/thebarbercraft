@@ -1,64 +1,122 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { supabase } from '../supabaseClient';
 
-const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
+  const [session, setSession] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const getHeaders = useCallback(() => {
-    const token = localStorage.getItem('barber_token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+  const fetchProfile = useCallback(async (userId) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+    
+    if (error) {
+      console.error('Error fetching profile:', error);
+      return null;
+    }
+    return data;
   }, []);
 
   useEffect(() => {
-    const token = localStorage.getItem('barber_token');
-    if (token) {
-      axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then(r => setUser(r.data))
-        .catch(() => localStorage.removeItem('barber_token'))
-        .finally(() => setLoading(false));
-    } else {
+    // Check active sessions and sets the user
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      if (session) {
+        fetchProfile(session.user.id).then(profile => {
+          setUser({ ...session.user, ...profile });
+          setLoading(false);
+        });
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Listen for changes on auth state (logged in, signed out, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setSession(session);
+      if (session) {
+        const profile = await fetchProfile(session.user.id);
+        setUser({ ...session.user, ...profile });
+      } else {
+        setUser(null);
+      }
       setLoading(false);
-    }
-  }, []);
+    });
+
+    return () => subscription.unsubscribe();
+  }, [fetchProfile]);
+
+  const getHeaders = useCallback(() => {
+    return session ? { Authorization: `Bearer ${session.access_token}` } : {};
+  }, [session]);
 
   const login = useCallback(async (email, password) => {
-    const { data } = await axios.post(`${API}/auth/login`, { email, password });
-    localStorage.setItem('barber_token', data.token);
-    setUser(data.user);
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
     return data.user;
+  }, []);
+
+  const loginWithGoogle = useCallback(async () => {
+    const { data, error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: window.location.origin
+      }
+    });
+    if (error) throw error;
+    return data;
   }, []);
 
   const register = useCallback(async (name, email, phone, password) => {
-    const { data } = await axios.post(`${API}/auth/register`, { name, email, phone, password });
-    localStorage.setItem('barber_token', data.token);
-    setUser(data.user);
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: { full_name: name, phone: phone }
+      }
+    });
+    if (error) throw error;
+    
+    // Note: Profile creation should be handled by a Supabase trigger for reliability,
+    // but we can also do a manual insert here if needed.
     return data.user;
   }, []);
 
-  const logout = useCallback(() => {
-    localStorage.removeItem('barber_token');
-    setUser(null);
+  const logout = useCallback(async () => {
+    const { error } = await supabase.auth.signOut();
+    if (error) console.error('Logout error:', error);
   }, []);
 
   const refreshUser = useCallback(async () => {
-    const token = localStorage.getItem('barber_token');
-    if (!token) return;
-    try {
-      const { data } = await axios.get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } });
-      setUser(data);
-    } catch (_) {}
-  }, []);
+    if (session) {
+      const profile = await fetchProfile(session.user.id);
+      setUser({ ...session.user, ...profile });
+    }
+  }, [session, fetchProfile]);
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, getHeaders, refreshUser }}>
+    <AuthContext.Provider value={{ 
+      user, 
+      session,
+      loading, 
+      login, 
+      loginWithGoogle,
+      register, 
+      logout, 
+      getHeaders, 
+      refreshUser 
+    }}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export const useAuth = () => useContext(AuthContext);
+
+const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
 export { API };

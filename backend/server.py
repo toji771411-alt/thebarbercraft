@@ -6,11 +6,9 @@ load_dotenv(ROOT_DIR / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, EmailStr
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
-from bson import ObjectId
 import os, logging, bcrypt, jwt, uuid
 
 # Required Env Vars
@@ -21,9 +19,13 @@ def get_env(k, default=None):
         raise RuntimeError(f"Missing {k}")
     return v
 
-mongo_url = get_env('MONGO_URL')
-db_client = AsyncIOMotorClient(mongo_url)
-db = db_client[get_env('DB_NAME', 'barbercraft')]
+from supabase import create_client, Client
+
+supabase_url = get_env('SUPABASE_URL')
+supabase_key = get_env('SUPABASE_KEY')
+supabase_service_role = get_env('SUPABASE_SERVICE_ROLE')
+
+supabase: Client = create_client(supabase_url, supabase_service_role)
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -53,19 +55,23 @@ async def current_user(request: Request) -> dict:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
+    token = auth[7:]
     try:
-        p = jwt.decode(auth[7:], JWT_SECRET, algorithms=[JWT_ALG])
-        u = await db.users.find_one({"_id": ObjectId(p["sub"])})
-        if not u:
+        # Supabase JWT verification
+        # You can either use the supabase client to get the user or decode manually
+        # Using service role client to get user by token
+        res = supabase.auth.get_user(token)
+        if not res.user:
             raise HTTPException(401, "User not found")
-        u["id"] = str(u.pop("_id"))
-        u.pop("password_hash", None)
-        return u
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, "Token expired")
-    except HTTPException:
-        raise
-    except Exception:
+        
+        # Fetch profile from profiles table
+        profile = supabase.table("profiles").select("*").eq("id", res.user.id).single().execute()
+        if not profile.data:
+            raise HTTPException(401, "Profile not found")
+            
+        return profile.data
+    except Exception as e:
+        logger.error(f"Auth error: {str(e)}")
         raise HTTPException(401, "Invalid token")
 
 async def admin_user(request: Request) -> dict:
@@ -75,19 +81,47 @@ async def admin_user(request: Request) -> dict:
     return u
 
 # ── Constants ─────────────────────────────────────────────────────────────────
-PRICES = {"haircut": 300, "beard": 200, "combo": 400}
-POINTS = {"haircut": 1, "beard": 1, "combo": 3}
-ADDONS = {"head_massage": 150, "scrub": 200}
-REDEMPTIONS = {
-    "head_massage": {"name": "Head Massage", "points": 10},
-    "signature_haircut": {"name": "Signature Haircut", "points": 15},
-    "executive_combo": {"name": "Executive Combo", "points": 25},
+PRICES = {
+    "haircut": 300,
+    "beard": 200,
+    "combo": 400,
+    "manicure": 250,
+    "pedicure": 300,
+    "curly_hair": 450,
+    "head_massage": 150,
+    "de_tan": 200,
+    "hair_spa": 500,
+    "facial": 600
 }
+POINTS = {
+    "haircut": 10,
+    "beard": 10,
+    "combo": 25,
+    "manicure": 25,
+    "pedicure": 30,
+    "curly_hair": 45,
+}
+ADDONS = {
+    "head_massage": 150,
+    "de_tan": 200,
+    "hair_spa": 500,
+    "facial": 600
+}
+REDEMPTIONS = {
+    "head_massage": {"name": "Relaxing Head Massage", "points": 100},
+    "de_tan": {"name": "De-Tan Treatment", "points": 150},
+    "hair_spa": {"name": "Nourishing Hair Spa", "points": 175},
+    "facial": {"name": "Rejuvenating Facial", "points": 300},
+    "surprise_gift": {"name": "Exclusive Surprise Gift", "points": 400},
+}
+# Tue-Sun: 9:00 AM - 10:30 PM
 STD_TUE_SUN = ["09:00","10:00","11:00","12:00","13:00","14:00","15:00",
                 "16:00","17:00","18:00","19:00","20:00","21:00","22:00"]
-STD_MON     = ["14:00","15:00","16:00","17:00","18:00","19:00","20:00","21:00","22:00"]
-EMRG_AM     = ["08:00"]
-EMRG_PM     = ["22:30"]
+# Mon: 4:00 PM - 8:30 PM
+STD_MON     = ["16:00","17:00","18:00","19:00","20:00"]
+# Emergency Slots
+EMRG_AM     = ["08:00"] # 8:00 AM - 9:00 AM
+EMRG_PM     = ["22:30"] # 10:30 PM - 11:30 PM
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
 class RegisterIn(BaseModel):
@@ -153,14 +187,10 @@ async def available_slots(booking_date: str, slot_type: str = "standard"):
     else:
         return {"date": booking_date, "slot_type": slot_type, "available_slots": ["right_now"]}
 
-    booked = await db.bookings.find(
-        {"date": booking_date, "slot_type": slot_type,
-         "status": {"$in": ["pending_payment", "confirmed"]}},
-        {"_id": 0, "time_slot": 1}
-    ).to_list(100)
-    taken = {b["time_slot"] for b in booked}
+    booked = supabase.table("bookings").select("time_slot").eq("date", booking_date).eq("slot_type", slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
+    taken = {b["time_slot"] for b in booked.data}
     return {"date": booking_date, "slot_type": slot_type,
-            "available_slots": [t for t in times if t not in taken]}
+            "slots": [{"time": t, "available": t not in taken} for t in times]}
 
 # ── Bookings ──────────────────────────────────────────────────────────────────
 class BookingIn(BaseModel):
@@ -168,77 +198,141 @@ class BookingIn(BaseModel):
     slot_type: str
     date: str
     time_slot: str
+    barber: str = "Any Available"
     addon_services: List[str] = []
+    client_name: Optional[str] = None
+    applied_rewards: List[str] = []
+    wallet_addons: List[str] = []
 
 @api_router.post("/bookings")
 async def create_booking(data: BookingIn, request: Request):
     user = await current_user(request)
-    base = PRICES.get(data.service)
-    if not base:
-        raise HTTPException(400, "Invalid service")
+    base = PRICES.get(data.service, 300)
     mult = 3 if data.slot_type in ["emergency_morning","emergency_night","right_now"] else 1
-    total = base * mult
-    advance = round(total * 0.7)
+    
+    addon_total = 0
+    for a_id in data.addon_services or []:
+        addon_total += ADDONS.get(a_id, 0)
+        
+    total = (base * mult) + addon_total
+    
+    # Membership Check
+    is_free = False
+    if user.get("is_subscriber") and datetime.fromisoformat(user["subscription_expiry"]) > datetime.now(timezone.utc):
+        if data.service == "haircut" and user.get("haircuts_left", 0) > 0:
+            total -= (base * mult)
+            is_free = True
+        elif data.service == "beard" and user.get("beard_trims_left", 0) > 0:
+            total -= (base * mult)
+            is_free = True
+    
+    # Reward Deductions (Addons only)
+    applied_rewards = getattr(data, 'applied_rewards', [])
+    for a_id in applied_rewards:
+        if a_id in data.addon_services:
+            # Verify user has enough points or existing redemption
+            reward_info = REDEMPTIONS.get(a_id)
+            if reward_info:
+                # Check for existing redemption first
+                existing = supabase.table("reward_redemptions").select("*").eq("user_id", user["id"]).eq("reward_id", a_id).eq("status", "available").single().execute()
+                if existing.data:
+                    supabase.table("reward_redemptions").update({"status": "applied", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("id", existing.data["id"]).execute()
+                    total -= ADDONS.get(a_id, 0)
+                elif user.get("rewards_points", 0) >= reward_info["points"]:
+                    supabase.table("profiles").update({"rewards_points": user["rewards_points"] - reward_info["points"]}).eq("id", user["id"]).execute()
+                    supabase.table("reward_redemptions").insert({
+                        "user_id": user["id"], "reward_id": a_id, "reward_name": reward_info["name"],
+                        "points_used": reward_info["points"], "status": "applied"
+                    }).execute()
+                    total -= ADDONS.get(a_id, 0)
+    
+    # Wallet Deductions (Addons only)
+    wallet_addons = getattr(data, 'wallet_addons', [])
+    for a_id in wallet_addons:
+        if a_id in data.addon_services and a_id not in applied_rewards:
+            price = ADDONS.get(a_id, 0)
+            if user.get("wallet_balance", 0) >= price:
+                supabase.table("profiles").update({"wallet_balance": float(user["wallet_balance"]) - price}).eq("id", user["id"]).execute()
+                total -= price
+
+    advance = total # 100% Prepaid
+
+    base_pts = POINTS.get(data.service, 10) # default to 10
+    addon_pts = 0
+    # Add-on points: 10 pts per 100 spent (only for paid ones)
+    for a_id in data.addon_services or []:
+        if a_id in applied_rewards or a_id in wallet_addons:
+            continue
+            
+        a_price = ADDONS.get(a_id, 0)
+        addon_pts += int((a_price / 100) * 10)
+    
+    points_to_earn = base_pts + addon_pts
 
     if data.slot_type != "right_now":
-        if await db.bookings.find_one({
-            "date": data.date, "time_slot": data.time_slot,
-            "slot_type": data.slot_type, "status": {"$in": ["pending_payment","confirmed"]}
-        }):
+        existing_booking = supabase.table("bookings").select("*").eq("date", data.date).eq("time_slot", data.time_slot).eq("slot_type", data.slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
+        if existing_booking.data:
             raise HTTPException(400, "Slot already booked")
 
     bid = str(uuid.uuid4())
+    status = "pending_approval" if data.slot_type == "right_now" else "pending_payment"
+    
+    # Admin Booking Override
+    booked_by_admin = user.get("role") == "admin"
+    actual_name = data.client_name if booked_by_admin and data.client_name else user.get("name")
+    if booked_by_admin:
+        status = "confirmed"
+    
     doc = {
         "booking_id": bid, "user_id": user["id"],
-        "user_name": user.get("name"), "user_email": user.get("email"),
-        "user_phone": user.get("phone"), "service": data.service,
+        "user_name": actual_name, "user_email": user.get("email") if not booked_by_admin else "admin@manual",
+        "user_phone": user.get("phone") if not booked_by_admin else "manual", 
+        "service": data.service,
+        "barber": data.barber,
         "slot_type": data.slot_type, "date": data.date, "time_slot": data.time_slot,
-        "addon_services": data.addon_services, "total_amount": total,
-        "advance_amount": advance, "balance_amount": total - advance,
-        "status": "pending_payment", "payment_status": "pending",
-        "payment_id": None, "order_id": None, "rebook_deadline": None,
-        "created_at": datetime.now(timezone.utc),
+        "addon_services": data.addon_services, "total_amount": float(total),
+        "advance_amount": float(advance), "balance_amount": float(total - advance),
+        "points_to_earn": points_to_earn,
+        "status": status, "payment_status": "paid" if (is_free or booked_by_admin) else "pending",
+        "is_free": is_free,
+        "booked_by_admin": booked_by_admin,
+        "payment_id": "admin_manual" if booked_by_admin else None, 
+        "order_id": None, "rebook_deadline": None
     }
-    await db.bookings.insert_one(doc)
-    doc.pop("_id", None)
-    # Convert datetime for JSON
-    doc["created_at"] = doc["created_at"].isoformat()
-    return doc
+    res = supabase.table("bookings").insert(doc).execute()
+    return res.data[0]
 
 @api_router.get("/bookings")
 async def my_bookings(request: Request):
     user = await current_user(request)
-    docs = await db.bookings.find({"user_id": user["id"]}, {"_id": 0}).sort("created_at", -1).to_list(200)
-    for d in docs:
-        if isinstance(d.get("created_at"), datetime):
-            d["created_at"] = d["created_at"].isoformat()
-    return docs
+    res = supabase.table("bookings").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
+    return res.data
 
 @api_router.post("/bookings/{booking_id}/cancel")
 async def cancel_booking(booking_id: str, request: Request):
     user = await current_user(request)
-    b = await db.bookings.find_one({"booking_id": booking_id})
-    if not b:
+    res = supabase.table("bookings").select("*").eq("booking_id", booking_id).single().execute()
+    if not res.data:
         raise HTTPException(404, "Booking not found")
-    if b["user_id"] != user["id"]:
-        raise HTTPException(403, "Not authorized")
-    if b["status"] not in ["pending_payment", "confirmed"]:
+    if user.get("role") != "admin":
+        raise HTTPException(403, "Users cannot cancel bookings. Please contact the salon.")
+    if res.data["status"] not in ["pending_payment", "confirmed"]:
         raise HTTPException(400, "Cannot cancel this booking")
-    await db.bookings.update_one({"booking_id": booking_id},
-        {"$set": {"status": "cancelled", "updated_at": datetime.now(timezone.utc)}})
+    supabase.table("bookings").update({"status": "cancelled", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("booking_id", booking_id).execute()
     return {"message": "Booking cancelled"}
 
 @api_router.post("/bookings/{booking_id}/rebook")
 async def rebook(booking_id: str, data: BookingIn, request: Request):
     user = await current_user(request)
-    old = await db.bookings.find_one({"booking_id": booking_id})
+    res = supabase.table("bookings").select("*").eq("booking_id", booking_id).single().execute()
+    old = res.data
     if not old or old["user_id"] != user["id"]:
         raise HTTPException(404, "Booking not found")
     if old["status"] != "missed":
         raise HTTPException(400, "Only missed bookings can be rebooked")
     deadline = old.get("rebook_deadline")
     if deadline:
-        dl = datetime.fromisoformat(deadline) if isinstance(deadline, str) else deadline
+        dl = datetime.fromisoformat(deadline)
         if dl.tzinfo is None:
             dl = dl.replace(tzinfo=timezone.utc)
         if datetime.now(timezone.utc) > dl:
@@ -252,18 +346,15 @@ async def rebook(booking_id: str, data: BookingIn, request: Request):
         "booking_id": new_bid, "user_id": user["id"],
         "user_name": user.get("name"), "user_email": user.get("email"),
         "user_phone": user.get("phone"), "service": data.service,
+        "barber": data.barber,
         "slot_type": data.slot_type, "date": data.date, "time_slot": data.time_slot,
-        "addon_services": [], "total_amount": total,
-        "advance_amount": old["advance_amount"], "balance_amount": total - old["advance_amount"],
+        "addon_services": [], "total_amount": float(total),
+        "advance_amount": float(old["advance_amount"]), "balance_amount": float(total - old["advance_amount"]),
         "status": "confirmed", "payment_status": "advance_paid",
-        "payment_id": old.get("payment_id"), "rebooked_from": booking_id,
-        "created_at": datetime.now(timezone.utc),
+        "payment_id": old.get("payment_id"), "rebooked_from": booking_id
     }
-    await db.bookings.insert_one(doc)
-    await db.bookings.update_one({"booking_id": booking_id},
-        {"$set": {"status": "rebooked", "updated_at": datetime.now(timezone.utc)}})
-    doc.pop("_id", None)
-    doc["created_at"] = doc["created_at"].isoformat()
+    supabase.table("bookings").insert(doc).execute()
+    supabase.table("bookings").update({"status": "rebooked", "updated_at": datetime.now(timezone.utc).isoformat()}).eq("booking_id", booking_id).execute()
     return doc
 
 # ── Payments (mock – Razorpay ready) ─────────────────────────────────────────
@@ -272,8 +363,8 @@ class OrderIn(BaseModel):
 
 @api_router.post("/payments/create-order")
 async def create_order(data: OrderIn, request: Request):
-    user = await current_user(request)
-    b = await db.bookings.find_one({"booking_id": data.booking_id})
+    res = supabase.table("bookings").select("*").eq("booking_id", data.booking_id).single().execute()
+    b = res.data
     if not b or b["user_id"] != user["id"]:
         raise HTTPException(404, "Booking not found")
 
@@ -288,16 +379,14 @@ async def create_order(data: OrderIn, request: Request):
             "currency": "INR", "payment_capture": 1,
             "receipt": data.booking_id[:40],
         })
-        await db.bookings.update_one({"booking_id": data.booking_id},
-            {"$set": {"order_id": order["id"]}})
+        supabase.table("bookings").update({"order_id": order["id"]}).eq("booking_id", data.booking_id).execute()
         return {"order_id": order["id"], "amount": b["advance_amount"],
                 "currency": "INR", "booking_id": data.booking_id,
                 "key_id": key_id, "mock": False}
 
     # Mock order
     oid = f"order_{uuid.uuid4().hex[:16]}"
-    await db.bookings.update_one({"booking_id": data.booking_id},
-        {"$set": {"order_id": oid}})
+    supabase.table("bookings").update({"order_id": oid}).eq("booking_id", data.booking_id).execute()
     return {"order_id": oid, "amount": b["advance_amount"],
             "currency": "INR", "booking_id": data.booking_id,
             "key_id": "mock", "mock": True}
@@ -310,23 +399,22 @@ class VerifyIn(BaseModel):
 
 @api_router.post("/payments/verify")
 async def verify_payment(data: VerifyIn, request: Request):
-    user = await current_user(request)
-    b = await db.bookings.find_one({"booking_id": data.booking_id})
+    res = supabase.table("bookings").select("*").eq("booking_id", data.booking_id).single().execute()
+    b = res.data
     if not b or b["user_id"] != user["id"]:
         raise HTTPException(404, "Booking not found")
     pid = data.payment_id or f"pay_{uuid.uuid4().hex[:16]}"
-    await db.bookings.update_one({"booking_id": data.booking_id}, {"$set": {
+    supabase.table("bookings").update({
         "status": "confirmed", "payment_status": "advance_paid",
-        "payment_id": pid, "updated_at": datetime.now(timezone.utc),
-    }})
+        "payment_id": pid, "updated_at": datetime.now(timezone.utc).isoformat(),
+    }).eq("booking_id", data.booking_id).execute()
     return {"message": "Payment verified", "booking_id": data.booking_id, "payment_id": pid}
 
 # ── Wallet ────────────────────────────────────────────────────────────────────
 @api_router.get("/wallet")
 async def get_wallet(request: Request):
     user = await current_user(request)
-    u = await db.users.find_one({"_id": ObjectId(user["id"])})
-    return {"wallet_balance": u.get("wallet_balance", 0.0),
+    return {"wallet_balance": user.get("wallet_balance", 0.0),
             "note": "Wallet funds are only for Add-on Services"}
 
 class UseWalletIn(BaseModel):
@@ -336,29 +424,34 @@ class UseWalletIn(BaseModel):
 @api_router.post("/wallet/use")
 async def use_wallet(data: UseWalletIn, request: Request):
     user = await current_user(request)
-    u = await db.users.find_one({"_id": ObjectId(user["id"])})
     price = ADDONS.get(data.addon_service)
     if not price:
         raise HTTPException(400, "Invalid addon service")
-    if u.get("wallet_balance", 0) < price:
+    if float(user.get("wallet_balance", 0)) < price:
         raise HTTPException(400, "Insufficient wallet balance")
-    await db.users.update_one({"_id": ObjectId(user["id"])},
-        {"$inc": {"wallet_balance": -price}})
-    await db.bookings.update_one({"booking_id": data.booking_id},
-        {"$addToSet": {"addon_services": data.addon_service}})
+    
+    supabase.table("profiles").update({"wallet_balance": float(user["wallet_balance"]) - price}).eq("id", user["id"]).execute()
+    
+    # Get current addons and add new one
+    res = supabase.table("bookings").select("addon_services").eq("booking_id", data.booking_id).eq("user_id", user["id"]).single().execute()
+    addons = res.data.get("addon_services") or []
+    if data.addon_service not in addons:
+        addons.append(data.addon_service)
+        supabase.table("bookings").update({"addon_services": addons}).eq("booking_id", data.booking_id).execute()
+        
     return {"message": f"Addon added via wallet", "deducted": price}
 
 # ── Rewards ───────────────────────────────────────────────────────────────────
 @api_router.get("/rewards")
 async def get_rewards(request: Request):
     user = await current_user(request)
-    u = await db.users.find_one({"_id": ObjectId(user["id"])})
     return {
-        "points": u.get("rewards_points", 0),
+        "points": user.get("rewards_points", 0),
         "earn_rules": [
-            {"service": "Haircut", "points": 1},
-            {"service": "Beard", "points": 1},
-            {"service": "Combo", "points": 3},
+            {"service": "Haircut", "points": 10},
+            {"service": "Beard Styling", "points": 10},
+            {"service": "Combo", "points": 25},
+            {"service": "Add-ons", "points": "10 per ₹100"},
         ],
         "redemptions": [
             {"id": k, "name": v["name"], "points": v["points"]}
@@ -375,44 +468,143 @@ async def redeem(data: RedeemIn, request: Request):
     r = REDEMPTIONS.get(data.reward_id)
     if not r:
         raise HTTPException(400, "Invalid reward")
-    u = await db.users.find_one({"_id": ObjectId(user["id"])})
-    if u.get("rewards_points", 0) < r["points"]:
-        raise HTTPException(400, f"Need {r['points']} pts, you have {u.get('rewards_points',0)}")
-    await db.users.update_one({"_id": ObjectId(user["id"])},
-        {"$inc": {"rewards_points": -r["points"]}})
-    await db.reward_redemptions.insert_one({
+    if user.get("rewards_points", 0) < r["points"]:
+        raise HTTPException(400, f"Need {r['points']} pts, you have {user.get('rewards_points',0)}")
+    
+    supabase.table("profiles").update({"rewards_points": user["rewards_points"] - r["points"]}).eq("id", user["id"]).execute()
+    supabase.table("reward_redemptions").insert({
         "user_id": user["id"], "reward_id": data.reward_id,
         "reward_name": r["name"], "points_used": r["points"],
-        "created_at": datetime.now(timezone.utc),
-    })
+        "status": "available",
+        "booking_id": None
+    }).execute()
     return {"message": f"Redeemed {r['name']}!", "points_used": r["points"]}
+
+@api_router.get("/rewards/my-redemptions")
+async def my_redemptions(request: Request):
+    user = await current_user(request)
+    res = supabase.table("reward_redemptions").select("*").eq("user_id", user["id"]).order("created_at", desc=True).execute()
+    return res.data
+
+class ApplyRedemptionIn(BaseModel):
+    redemption_id: str
+    booking_id: str
+
+@api_router.post("/rewards/apply")
+async def apply_redemption(data: ApplyRedemptionIn, request: Request):
+    user = await current_user(request)
+    # Find redemption
+    red_res = supabase.table("reward_redemptions").select("*").eq("id", data.redemption_id).eq("user_id", user["id"]).single().execute()
+    red = red_res.data
+    if not red:
+        raise HTTPException(404, "Redemption not found")
+    if red["status"] != "available":
+        raise HTTPException(400, "Redemption already used or applied")
+
+    # Find booking
+    booking = await db.bookings.find_one({"booking_id": data.booking_id, "user_id": user["id"]})
+    if not booking:
+        raise HTTPException(404, "Booking not found")
+    if booking["status"] not in ["confirmed", "pending_payment"]:
+        raise HTTPException(400, "Cannot add reward to this booking status")
+
+    # Update booking with the addon
+    # We use the reward_id as the addon name if it matches our addon list
+    addon_id = red["reward_id"]
+    price_to_deduct = ADDONS.get(addon_id, 0)
+    
+    upd = {"$addToSet": {"addon_services": addon_id}}
+    
+    # If booking is pending payment, we can reduce the total
+    if booking["status"] == "pending_payment":
+        # We only deduct if the addon wasn't already there (to avoid double deduction)
+        # But $addToSet won't add it if it's there. 
+        # Let's check if it was already in addon_services
+        if addon_id not in booking.get("addon_services", []):
+            # The user is applying a reward for an addon they MIGHT have already selected
+            # Or they are adding a new addon via reward.
+            # If they already selected it, the price was already in total_amount.
+            # If they didn't, we are adding it for free, so total_amount stays same but addon is added.
+            # Wait, the logic should be: 
+            # 1. If addon is already in booking.addon_services, it means they selected it and it's in the total.
+            #    In this case, we deduct the price from total.
+            # 2. If addon is NOT in booking.addon_services, we add it but don't increase total.
+            
+            if addon_id in booking.get("addon_services", []):
+                new_total = max(0, booking["total_amount"] - price_to_deduct)
+                upd["$set"] = {
+                    "total_amount": new_total,
+                    "advance_amount": new_total, # Assuming 100% prepaid
+                    "updated_at": datetime.now(timezone.utc)
+                }
+        else:
+            # Addon already there, just apply reward to reduce price
+            new_total = max(0, booking["total_amount"] - price_to_deduct)
+            upd["$set"] = {
+                "total_amount": new_total,
+                "advance_amount": new_total,
+                "updated_at": datetime.now(timezone.utc)
+            }
+    
+    await db.bookings.update_one({"booking_id": data.booking_id}, upd)
+    
+    # Mark redemption as applied
+    await db.reward_redemptions.update_one({"_id": ObjectId(data.redemption_id)},
+        {"$set": {"status": "applied", "booking_id": data.booking_id, "updated_at": datetime.now(timezone.utc)}})
+
+    return {"message": f"Reward '{red['reward_name']}' applied to booking {data.booking_id}"}
+
+@api_router.post("/subscription/buy")
+async def buy_subscription(request: Request):
+    user = await current_user(request)
+    expiry = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
+    supabase.table("profiles").update({
+        "is_subscriber": True,
+        "subscription_expiry": expiry,
+        "haircuts_left": 2,
+        "beard_trims_left": 1
+    }).eq("id", user["id"]).execute()
+    return {"message": "Subscription activated!", "expiry": expiry}
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
 @api_router.get("/admin/stats")
 async def admin_stats(request: Request):
     await admin_user(request)
-    total = await db.bookings.count_documents({})
-    confirmed = await db.bookings.count_documents({"status": "confirmed"})
-    completed = await db.bookings.count_documents({"status": "completed"})
-    missed = await db.bookings.count_documents({"status": "missed"})
-    customers = await db.users.count_documents({"role": "customer"})
-    rev = await db.bookings.aggregate([
-        {"$match": {"status": {"$in": ["confirmed","completed"]}, "payment_status": "advance_paid"}},
-        {"$group": {"_id": None, "total": {"$sum": "$advance_amount"}}},
-    ]).to_list(1)
-    return {"total_bookings": total, "confirmed": confirmed, "completed": completed,
-            "missed": missed, "customers": customers,
-            "revenue": rev[0]["total"] if rev else 0}
+    
+    total = supabase.table("bookings").select("id", count="exact").execute()
+    confirmed = supabase.table("bookings").select("id", count="exact").eq("status", "confirmed").execute()
+    completed = supabase.table("bookings").select("id", count="exact").eq("status", "completed").execute()
+    missed = supabase.table("bookings").select("id", count="exact").eq("status", "missed").execute()
+    customers = supabase.table("profiles").select("id", count="exact").eq("role", "customer").execute()
+    active_members = supabase.table("profiles").select("id", count="exact").eq("role", "customer").eq("is_subscriber", True).execute()
+    
+    rev_res = supabase.table("bookings").select("advance_amount").in_("status", ["confirmed", "completed"]).eq("payment_status", "advance_paid").execute()
+    revenue = sum(float(b["advance_amount"]) for b in rev_res.data)
+    
+    pts_res = supabase.table("profiles").select("rewards_points").execute()
+    pts_issued = sum(p["rewards_points"] for p in pts_res.data)
+    
+    redeemed_res = supabase.table("reward_redemptions").select("points_used").execute()
+    pts_redeemed = sum(r["points_used"] for r in redeemed_res.data)
+
+    return {
+        "total_bookings": total.count, "confirmed": confirmed.count, "completed": completed.count,
+        "missed": missed.count, "customers": customers.count,
+        "revenue": revenue,
+        "points_issued": pts_issued,
+        "points_redeemed": pts_redeemed,
+        "active_members": active_members.count
+    }
 
 @api_router.get("/admin/bookings")
-async def admin_bookings(request: Request, status: Optional[str] = None):
+async def admin_bookings(request: Request, status: Optional[str] = None, user_id: Optional[str] = None):
     await admin_user(request)
-    q = {"status": status} if status else {}
-    docs = await db.bookings.find(q, {"_id": 0}).sort("created_at", -1).to_list(500)
-    for d in docs:
-        if isinstance(d.get("created_at"), datetime):
-            d["created_at"] = d["created_at"].isoformat()
-    return docs
+    q = supabase.table("bookings").select("*")
+    if status: q = q.eq("status", status)
+    if user_id: q = q.eq("user_id", user_id)
+    
+    res = q.order("created_at", desc=True).execute()
+    return res.data
 
 class StatusIn(BaseModel):
     status: str
@@ -420,46 +612,105 @@ class StatusIn(BaseModel):
 @api_router.patch("/admin/bookings/{booking_id}")
 async def admin_update_booking(booking_id: str, data: StatusIn, request: Request):
     await admin_user(request)
-    b = await db.bookings.find_one({"booking_id": booking_id})
+    res = supabase.table("bookings").select("*").eq("booking_id", booking_id).single().execute()
+    b = res.data
     if not b:
         raise HTTPException(404, "Booking not found")
-    upd: dict = {"status": data.status, "updated_at": datetime.now(timezone.utc)}
+    
+    upd: dict = {"status": data.status, "updated_at": datetime.now(timezone.utc).isoformat()}
     if data.status == "completed":
-        pts = POINTS.get(b.get("service","haircut"), 1)
-        await db.users.update_one({"_id": ObjectId(b["user_id"])},
-            {"$inc": {"rewards_points": pts}})
+        pts = b.get("points_to_earn", 10)
+        supabase.table("profiles").update({"rewards_points": b["points_to_earn"] + pts}).eq("id", b["user_id"]).execute()
+        # Deduct credits if free booking
+        if b.get("is_free"):
+            field = "haircuts_left" if b["service"] == "haircut" else "beard_trims_left"
+            # Get current left and decrement
+            u_res = supabase.table("profiles").select(field).eq("id", b["user_id"]).single().execute()
+            if u_res.data:
+                supabase.table("profiles").update({field: u_res.data[field] - 1}).eq("id", b["user_id"]).execute()
     elif data.status == "missed":
         upd["rebook_deadline"] = (datetime.now(timezone.utc) + timedelta(days=3)).isoformat()
-    await db.bookings.update_one({"booking_id": booking_id}, {"$set": upd})
+    
+    supabase.table("bookings").update(upd).eq("booking_id", booking_id).execute()
     return {"message": f"Status updated to {data.status}"}
+
+@api_router.delete("/admin/bookings/{booking_id}")
+async def admin_delete_booking(booking_id: str, request: Request):
+    await admin_user(request)
+    supabase.table("bookings").delete().eq("booking_id", booking_id).execute()
+    return {"message": "Booking deleted successfully"}
 
 @api_router.get("/admin/users")
 async def admin_users(request: Request):
     await admin_user(request)
-    users = await db.users.find({"role": "customer"},
-        {"name":1,"email":1,"phone":1,"wallet_balance":1,"rewards_points":1,"created_at":1}
-    ).to_list(500)
-    for u in users:
-        u["id"] = str(u.pop("_id"))
-        if isinstance(u.get("created_at"), datetime):
-            u["created_at"] = u["created_at"].isoformat()
-    return users
+    res = supabase.table("profiles").select("*").eq("role", "customer").execute()
+    return res.data
+
+class WalletUpdate(BaseModel):
+    balance: float
+
+@api_router.patch("/admin/users/{user_id}/wallet")
+async def admin_update_wallet(user_id: str, data: WalletUpdate, request: Request):
+    await admin_user(request)
+    supabase.table("profiles").update({"wallet_balance": float(data.balance)}).eq("id", user_id).execute()
+    return {"message": "Wallet updated"}
+
+class MembershipUpdate(BaseModel):
+    is_subscriber: bool
+    subscription_expiry: Optional[str] = None
+    haircuts_left: int
+    beard_trims_left: int
+
+@api_router.patch("/admin/users/{user_id}/membership")
+async def admin_update_membership(user_id: str, data: MembershipUpdate, request: Request):
+    await admin_user(request)
+    update_data = {
+        "is_subscriber": data.is_subscriber,
+        "haircuts_left": data.haircuts_left,
+        "beard_trims_left": data.beard_trims_left
+    }
+    if data.subscription_expiry:
+        update_data["subscription_expiry"] = data.subscription_expiry
+    
+    supabase.table("profiles").update(update_data).eq("id", user_id).execute()
+    return {"message": "Membership updated"}
+
+class RewardsUpdate(BaseModel):
+    points: int
+
+@api_router.patch("/admin/users/{user_id}/rewards")
+async def admin_update_rewards(user_id: str, data: RewardsUpdate, request: Request):
+    await admin_user(request)
+    supabase.table("profiles").update({"rewards_points": data.points}).eq("id", user_id).execute()
+    return {"message": "Rewards points updated"}
+
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, request: Request):
+    await admin_user(request)
+    # Using Supabase Admin to delete user from Auth
+    supabase.auth.admin.delete_user(user_id)
+    # Profiles and other data will be deleted via CASCADE if set up in SQL
+    # Otherwise delete manually
+    supabase.table("profiles").delete().eq("id", user_id).execute()
+    supabase.table("bookings").delete().eq("user_id", user_id).execute()
+    supabase.table("reward_redemptions").delete().eq("user_id", user_id).execute()
+    return {"message": "User and all associated data deleted successfully"}
 
 @api_router.post("/admin/wallet/process-expired")
 async def process_expired(request: Request):
     await admin_user(request)
     now = datetime.now(timezone.utc).isoformat()
-    expired = await db.bookings.find({
-        "status": "missed", "rebook_deadline": {"$lt": now},
-        "wallet_transferred": {"$ne": True},
-    }, {"_id": 0}).to_list(200)
+    res = supabase.table("bookings").select("*").eq("status", "missed").lt("rebook_deadline", now).neq("wallet_transferred", True).execute()
+    expired = res.data
     count = 0
     for b in expired:
-        await db.users.update_one({"_id": ObjectId(b["user_id"])},
-            {"$inc": {"wallet_balance": b.get("advance_amount", 0)}})
-        await db.bookings.update_one({"booking_id": b["booking_id"]},
-            {"$set": {"wallet_transferred": True, "status": "wallet_transferred"}})
-        count += 1
+        # Get user balance
+        u_res = supabase.table("profiles").select("wallet_balance").eq("id", b["user_id"]).single().execute()
+        if u_res.data:
+            new_bal = float(u_res.data["wallet_balance"]) + float(b.get("advance_amount", 0))
+            supabase.table("profiles").update({"wallet_balance": new_bal}).eq("id", b["user_id"]).execute()
+            supabase.table("bookings").update({"wallet_transferred": True, "status": "wallet_transferred"}).eq("booking_id", b["booking_id"]).execute()
+            count += 1
     return {"transferred": count, "message": f"{count} advance payment(s) moved to wallets"}
 
 # ── App setup ─────────────────────────────────────────────────────────────────
@@ -474,23 +725,8 @@ app.add_middleware(
 
 @app.on_event("startup")
 async def startup():
-    await db.users.create_index("email", unique=True)
-    await db.bookings.create_index("booking_id", unique=True)
-    # Seed admin
-    ae = os.environ.get("ADMIN_EMAIL", "admin@barbercraft.com")
-    ap = os.environ.get("ADMIN_PASSWORD", "BarberAdmin2024")
-    existing = await db.users.find_one({"email": ae})
-    if not existing:
-        await db.users.insert_one({
-            "name": "Admin", "email": ae, "password_hash": hash_pw(ap),
-            "role": "admin", "wallet_balance": 0.0, "rewards_points": 0,
-            "created_at": datetime.now(timezone.utc),
-        })
-        logger.info(f"Admin seeded: {ae}")
-    elif not check_pw(ap, existing["password_hash"]):
-        await db.users.update_one({"email": ae},
-            {"$set": {"password_hash": hash_pw(ap)}})
+    logger.info("Backend started with Supabase")
 
 @app.on_event("shutdown")
 async def shutdown():
-    db_client.close()
+    logger.info("Backend shutting down")

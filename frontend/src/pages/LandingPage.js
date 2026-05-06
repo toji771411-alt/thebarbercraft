@@ -43,7 +43,7 @@ export default function LandingPage() {
           </div>
         </div>
 
-        <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 w-full mt-16">
+        <div className="relative z-10 max-w-6xl mx-auto px-6 sm:px-10 w-full mt-32">
           {/* Eyebrow */}
           <div className="flex items-center gap-4 mb-10">
             <div className="h-px w-10 bg-white/30" />
@@ -96,60 +96,82 @@ export default function LandingPage() {
           <h2 className="font-serif text-4xl sm:text-5xl text-black">Our Services</h2>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
           {/* Haircut */}
-          <div data-testid="service-haircut" className="relative overflow-hidden rounded-xl border border-gray-200 group cursor-pointer hover:border-black transition-all" onClick={handleBookNow}>
-            <img src={HAIRCUT_IMG} alt="Haircut" className="w-full h-64 object-cover transition-all duration-700 group-hover:scale-105 grayscale group-hover:grayscale-0" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent transition-all duration-500 group-hover:from-black/40 group-hover:via-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-1">Signature Service</p>
-              <h3 className="font-serif text-2xl text-white mb-1">Haircut</h3>
-              <div className="flex items-center justify-between">
-                <p className="text-white/60 text-sm">Precision fade & styling</p>
-                <span className="text-white font-bold text-lg">₹300</span>
+          <div data-testid="service-haircut" className="relative overflow-hidden rounded-2xl border border-gray-100 group cursor-pointer hover:border-black transition-all shadow-sm hover:shadow-xl bg-white" onClick={handleBookNow}>
+            <div className="aspect-[4/3] overflow-hidden">
+              <img src={HAIRCUT_IMG} alt="Haircut" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0 opacity-90 group-hover:opacity-100" />
+            </div>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-serif text-2xl text-black">Haircut</h3>
+                <span className="text-black font-bold text-xl">₹300</span>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-white/40">
-                <Clock size={12}/> <span>45–55 mins</span>
-                <span className="ml-1 text-white/60">+1 pt</span>
+              <p className="text-black/50 text-sm mb-4">Precision fade & bespoke styling for the modern gentleman.</p>
+              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest font-bold text-black/40">
+                <span className="flex items-center gap-1"><Clock size={12}/> 45-55 MINS</span>
+                <span className="text-black/20">|</span>
+                <span className="text-black/60">10 POINTS</span>
               </div>
             </div>
           </div>
 
           {/* Beard */}
-          <div data-testid="service-beard" className="relative overflow-hidden rounded-xl border border-gray-200 group cursor-pointer hover:border-black transition-all" onClick={handleBookNow}>
-            <img src={BEARD_IMG} alt="Beard" className="w-full h-64 object-cover transition-all duration-700 group-hover:scale-105 grayscale group-hover:grayscale-0" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent transition-all duration-500 group-hover:from-black/40 group-hover:via-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-1">Classic Service</p>
-              <h3 className="font-serif text-2xl text-white mb-1">Beard Trim</h3>
-              <div className="flex items-center justify-between">
-                <p className="text-white/60 text-sm">Hot towel beard shave</p>
-                <span className="text-white font-bold text-lg">₹200</span>
+          <div data-testid="service-beard" className="relative overflow-hidden rounded-2xl border border-gray-100 group cursor-pointer hover:border-black transition-all shadow-sm hover:shadow-xl bg-white" onClick={handleBookNow}>
+            <div className="aspect-[4/3] overflow-hidden">
+              <img src={BEARD_IMG} alt="Beard Styling" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0 opacity-90 group-hover:opacity-100" />
+            </div>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-serif text-2xl text-black">Beard Styling</h3>
+                <span className="text-black font-bold text-xl">₹200</span>
               </div>
-              <div className="mt-2 flex items-center gap-3 text-xs text-white/40">
-                <Clock size={12}/> <span>45–55 mins</span>
-                <span className="ml-1 text-white/60">+1 pt</span>
+              <p className="text-black/50 text-sm mb-4">Hot towel shave & precision sculpting for a sharp profile.</p>
+              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest font-bold text-black/40">
+                <span className="flex items-center gap-1"><Clock size={12}/> 45-55 MINS</span>
+                <span className="text-black/20">|</span>
+                <span className="text-black/60">10 POINTS</span>
               </div>
             </div>
           </div>
 
           {/* Combo */}
-          <div data-testid="service-combo" className="relative overflow-hidden rounded-xl border border-gray-200 group cursor-pointer hover:border-black transition-all md:col-span-2 lg:col-span-1" onClick={handleBookNow}>
-            <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-black text-white text-xs font-bold rounded-full tracking-wide">BEST VALUE</div>
-            <img src={INTERIOR_IMG} alt="Combo" className="w-full h-64 object-cover transition-all duration-700 group-hover:scale-105 grayscale group-hover:grayscale-0" />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/30 to-transparent transition-all duration-500 group-hover:from-black/40 group-hover:via-transparent" />
-            <div className="absolute bottom-0 left-0 right-0 p-6">
-              <p className="text-xs uppercase tracking-[0.2em] text-white/50 mb-1">Premium Package</p>
-              <h3 className="font-serif text-2xl text-white mb-1">Executive Combo</h3>
-              <div className="flex items-center justify-between">
-                <p className="text-white/60 text-sm">Hair + Beard together</p>
-                <span className="text-white font-bold text-lg">₹400</span>
+          <div data-testid="service-combo" className="relative overflow-hidden rounded-2xl border border-gray-100 group cursor-pointer hover:border-black transition-all shadow-sm hover:shadow-xl bg-white" onClick={handleBookNow}>
+            <div className="absolute top-4 right-4 z-10 px-3 py-1 bg-black text-white text-[10px] font-black rounded-full tracking-widest uppercase">Best Value</div>
+            <div className="aspect-[4/3] overflow-hidden">
+              <img src={INTERIOR_IMG} alt="Executive Combo" className="w-full h-full object-cover transition-all duration-700 group-hover:scale-110 grayscale group-hover:grayscale-0 opacity-90 group-hover:opacity-100" />
+            </div>
+            <div className="p-6">
+              <div className="flex justify-between items-start mb-2">
+                <h3 className="font-serif text-2xl text-black">Executive Combo</h3>
+                <span className="text-black font-bold text-xl">₹400</span>
               </div>
-              <div className="mt-2 flex items-center gap-2 text-xs">
-                <Star size={12} className="text-white/60"/><span className="text-white/70">+3 Reward Points</span>
+              <p className="text-black/50 text-sm mb-4">The ultimate grooming experience. Haircut + Beard Styling.</p>
+              <div className="flex items-center gap-4 text-[10px] uppercase tracking-widest font-bold text-black/40">
+                <span className="flex items-center gap-1"><Clock size={12}/> 90 MINS</span>
+                <span className="text-black/20">|</span>
+                <span className="text-black/60">25 POINTS</span>
               </div>
             </div>
           </div>
+        </div>
+
+        {/* More Services Row */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          {[
+            { name: "Manicure", price: "250", pts: 25, desc: "Professional hand & nail care." },
+            { name: "Pedicure", price: "300", pts: 30, desc: "Relaxing foot treatment & spa." },
+            { name: "Curly Hair Styling", price: "450", pts: 45, desc: "Expert care for natural curls." }
+          ].map((s, i) => (
+            <div key={i} className="p-6 rounded-xl border border-gray-100 bg-white hover:border-black transition-all group cursor-pointer" onClick={handleBookNow}>
+              <div className="flex justify-between items-center mb-2">
+                <h4 className="font-serif text-xl text-black">{s.name}</h4>
+                <span className="font-bold text-black">₹{s.price}</span>
+              </div>
+              <p className="text-black/40 text-xs mb-3">{s.desc}</p>
+              <span className="text-[10px] font-bold tracking-widest text-black/60 uppercase">{s.pts} REWARD POINTS</span>
+            </div>
+          ))}
         </div>
 
         {/* Add-ons */}
@@ -226,8 +248,8 @@ export default function LandingPage() {
           </div>
           <div className="p-6 bg-white border border-gray-200 rounded-xl hover:border-black transition-all">
             <p className="text-xs uppercase tracking-[0.2em] text-black/40 mb-3 font-semibold">Monday</p>
-            <p className="font-serif text-3xl text-black">2:00 PM – 10:30 PM</p>
-            <p className="text-black/40 text-sm mt-2">Reduced hours on Monday</p>
+            <p className="font-serif text-3xl text-black">4:00 PM – 8:30 PM</p>
+            <p className="text-black/40 text-sm mt-2">Special Monday hours</p>
           </div>
         </div>
         <p className="text-center text-black/40 text-sm mt-6 italic">Each slot is 45–55 minutes for a dedicated, unrushed experience.</p>
@@ -242,10 +264,10 @@ export default function LandingPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[
-              { icon: Shield, title: "70% Advance", desc: "Pay 70% to secure your slot. Remaining 30% after service." },
-              { icon: Clock, title: "Be Punctual", desc: "10 minutes late = automatic cancellation. Please arrive on time." },
-              { icon: Zap, title: "3-Day Recovery", desc: "Missed your slot? Rebook within 3 days using the same advance." },
-              { icon: Gift, title: "Wallet Transfer", desc: "After 3 days, advance moves to your digital wallet for add-ons." },
+              { icon: Shield, title: "100% Prepaid", desc: "Secure your exclusive slot with full advance payment. No waiting." },
+              { icon: Clock, title: "10-Min Rule", desc: "10 minutes late = automatic cancellation. Respect the craft & our time." },
+              { icon: Zap, title: "3-Day Rebook", desc: "Missed your slot? Rebook within 3 days using your prepaid credit." },
+              { icon: Gift, title: "Wallet Shield", desc: "After 3 days, funds move to your wallet for luxury add-on services." },
             ].map((p, i) => (
               <div key={i} data-testid={`policy-card-${i}`} className="p-6 bg-white border border-gray-200 rounded-xl hover:border-black transition-all">
                 <p.icon size={24} className="text-black mb-4" />
@@ -256,7 +278,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-6 p-4 border border-gray-200 bg-white rounded-xl text-center">
             <p className="text-black/60 text-sm">
-              <strong className="text-black">Important:</strong> Wallet funds are exclusively for Add-on Services (Head Massage, Scrub). They cannot be used for Haircut or Beard services.
+              <strong className="text-black">Note:</strong> Wallet balance is reserved for luxury add-ons (Head Massage, etc.) and cannot be used for Haircut/Beard bookings.
             </p>
           </div>
         </div>
@@ -272,43 +294,45 @@ export default function LandingPage() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-            <div className="p-8 bg-white/5 border border-white/10 rounded-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Star size={20} className="text-white" />
-                <h3 className="font-serif text-2xl text-white">Earn Points</h3>
+            <div className="p-8 bg-white/5 border border-white/10 rounded-2xl">
+              <div className="flex items-center gap-3 mb-8">
+                <Star size={24} className="text-white" />
+                <h3 className="font-serif text-3xl text-white">Earn Points</h3>
               </div>
               <div className="space-y-4">
                 {[
-                  { service: "Haircut", pts: "1 Point" },
-                  { service: "Beard Trim", pts: "1 Point" },
-                  { service: "Combo (Hair + Beard)", pts: "3 Points" },
+                  { service: "Haircut", pts: "10 Pts" },
+                  { service: "Beard Styling", pts: "10 Pts" },
+                  { service: "Combo (Hair + Beard)", pts: "25 Pts" },
+                  { service: "Spend ₹100", pts: "10 Pts" },
                 ].map((r, i) => (
-                  <div key={i} data-testid={`earn-rule-${i}`} className="flex items-center justify-between py-3 border-b border-white/10">
-                    <span className="text-white/70 text-sm">{r.service}</span>
-                    <span className="px-3 py-1 bg-white text-black text-xs rounded-full font-bold">{r.pts}</span>
+                  <div key={i} data-testid={`earn-rule-${i}`} className="flex items-center justify-between py-4 border-b border-white/5">
+                    <span className="text-white/70 font-medium">{r.service}</span>
+                    <span className="px-4 py-1 bg-white text-black text-[10px] rounded-full font-black tracking-widest uppercase">{r.pts}</span>
                   </div>
                 ))}
               </div>
             </div>
 
-            <div className="p-8 bg-white/5 border border-white/20 rounded-xl">
-              <div className="flex items-center gap-3 mb-6">
-                <Gift size={20} className="text-white" />
-                <h3 className="font-serif text-2xl text-white">Redeem FREE</h3>
+            <div className="p-8 bg-white/10 border border-white/20 rounded-2xl shadow-2xl">
+              <div className="flex items-center gap-3 mb-8">
+                <Gift size={24} className="text-white" />
+                <h3 className="font-serif text-3xl text-white">Redeem Luxury</h3>
               </div>
               <div className="space-y-4">
                 {[
-                  { pts: 10, reward: "Head Massage" },
-                  { pts: 15, reward: "Signature Haircut" },
-                  { pts: 25, reward: "Executive Combo" },
+                  { pts: 100, reward: "Relaxing Head Massage" },
+                  { pts: 150, reward: "De-Tan Treatment" },
+                  { pts: 175, reward: "Nourishing Hair Spa" },
+                  { pts: 300, reward: "Rejuvenating Facial" },
+                  { pts: 400, reward: "Exclusive Surprise Gift" },
                 ].map((r, i) => (
-                  <div key={i} data-testid={`redeem-option-${i}`} className="flex items-center justify-between py-3 border-b border-white/10">
-                    <span className="text-white/70 text-sm">{r.reward}</span>
-                    <span className="px-3 py-1 bg-white/10 border border-white/20 text-white/60 text-xs rounded-full font-bold">{r.pts} pts</span>
+                  <div key={i} data-testid={`redeem-option-${i}`} className="flex items-center justify-between py-4 border-b border-white/5">
+                    <span className="text-white/70 font-medium">{r.reward}</span>
+                    <span className="px-3 py-1 bg-white/10 border border-white/20 text-white/90 text-[10px] rounded-full font-black tracking-widest">{r.pts} PTS</span>
                   </div>
                 ))}
               </div>
-              <p className="text-xs text-white/30 mt-4">*Points awarded after service completion</p>
             </div>
           </div>
 
@@ -345,7 +369,7 @@ export default function LandingPage() {
           <div>
             <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-4 font-semibold">Hours</h4>
             <p className="text-white/50 text-sm mb-1">Tue – Sun: 9:00 AM – 10:30 PM</p>
-            <p className="text-white/50 text-sm">Monday: 2:00 PM – 10:30 PM</p>
+            <p className="text-white/50 text-sm">Monday: 4:00 PM – 8:30 PM</p>
           </div>
           <div>
             <h4 className="text-[10px] uppercase tracking-[0.3em] text-white/30 mb-4 font-semibold">Quick Links</h4>

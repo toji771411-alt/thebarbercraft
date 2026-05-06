@@ -845,19 +845,9 @@ async def add_cors_header(request: Request, call_next):
         stack = traceback.format_exc()
         logger.error(f"Global error: {str(e)}\n{stack}")
         from fastapi.responses import JSONResponse
-        return JSONResponse(
+        response = JSONResponse(
             status_code=500,
-            content={
-                "detail": str(e), 
-                "stack": stack,
-                "type": "GlobalError"
-            },
-            headers={
-                "Access-Control-Allow-Origin": origin,
-                "Access-Control-Allow-Methods": "*",
-                "Access-Control-Allow-Headers": "*",
-                "Access-Control-Allow-Credentials": "true"
-            }
+            content={"detail": "Internal server error", "trace": str(e)}
         )
         
     response.headers["Access-Control-Allow-Origin"] = origin

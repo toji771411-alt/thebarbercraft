@@ -379,8 +379,8 @@ async def create_order(data: OrderIn, request: Request):
     if not b or b["user_id"] != user["id"]:
         raise HTTPException(404, "Booking not found")
 
-    key_id = os.environ.get("RAZORPAY_KEY_ID", "")
-    key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "")
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SlyVTtWcGzaPhX")
+    key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "9HfkFb4RCN0rbmC9A2EVBh54")
 
     if key_id and key_secret:
         import razorpay
@@ -410,10 +410,28 @@ class VerifyIn(BaseModel):
 
 @api_router.post("/payments/verify")
 async def verify_payment(data: VerifyIn, request: Request):
+    user = await current_user(request)
     res = supabase.table("bookings").select("*").eq("booking_id", data.booking_id).single().execute()
     b = res.data
     if not b or b["user_id"] != user["id"]:
         raise HTTPException(404, "Booking not found")
+
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SlyVTtWcGzaPhX")
+    key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "9HfkFb4RCN0rbmC9A2EVBh54")
+
+    if key_id and key_secret and data.signature and data.order_id and data.payment_id:
+        import razorpay
+        rz = razorpay.Client(auth=(key_id, key_secret))
+        params = {
+            'razorpay_order_id': data.order_id,
+            'razorpay_payment_id': data.payment_id,
+            'razorpay_signature': data.signature
+        }
+        try:
+            rz.utility.verify_payment_signature(params)
+        except Exception:
+            raise HTTPException(400, "Invalid payment signature")
+
     pid = data.payment_id or f"pay_{uuid.uuid4().hex[:16]}"
     supabase.table("bookings").update({
         "status": "confirmed", "payment_status": "advance_paid",

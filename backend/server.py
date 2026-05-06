@@ -300,7 +300,8 @@ async def create_booking(data: BookingIn, request: Request):
         "user_phone": user.get("phone") if not booked_by_admin else "manual", 
         "service": data.service,
         "barber": data.barber,
-        "slot_type": data.slot_type, "date": data.date, "time_slot": data.time_slot,
+        "slot_type": data.slot_type, "date": data.date, 
+        "time": data.time_slot, "time_slot": data.time_slot,
         "addon_services": data.addon_services, "total_amount": float(total),
         "advance_amount": float(advance), "balance_amount": float(total - advance),
         "points_to_earn": points_to_earn,
@@ -566,17 +567,51 @@ async def apply_redemption(data: ApplyRedemptionIn, request: Request):
 
     return {"message": f"Reward '{red['reward_name']}' applied to booking {data.booking_id}"}
 
-@api_router.post("/subscription/buy")
-async def buy_subscription(request: Request):
+@api_router.post("/subscription/create-order")
+async def create_subscription_order(request: Request):
     user = await current_user(request)
+    amount = 999
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SlyVTtWcGzaPhX")
+    key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "9HfkFb4RCN0rbmC9A2EVBh54")
+    
+    import razorpay
+    rz = razorpay.Client(auth=(key_id, key_secret))
+    order = rz.order.create({
+        "amount": amount * 100,
+        "currency": "INR", "payment_capture": 1,
+        "notes": {"type": "subscription", "user_id": user["id"]}
+    })
+    return {"order_id": order["id"], "amount": amount, "key_id": key_id}
+
+@api_router.post("/subscription/verify")
+async def verify_subscription_payment(data: dict, request: Request):
+    user = await current_user(request)
+    key_id = os.environ.get("RAZORPAY_KEY_ID", "rzp_test_SlyVTtWcGzaPhX")
+    key_secret = os.environ.get("RAZORPAY_KEY_SECRET", "9HfkFb4RCN0rbmC9A2EVBh54")
+    
+    # Real Razorpay verification if signature present
+    if data.get("signature") and key_id and key_secret:
+        import razorpay
+        rz = razorpay.Client(auth=(key_id, key_secret))
+        params = {
+            'razorpay_order_id': data.get("order_id"),
+            'razorpay_payment_id': data.get("payment_id"),
+            'razorpay_signature': data.get("signature")
+        }
+        try:
+            rz.utility.verify_payment_signature(params)
+        except:
+            raise HTTPException(400, "Invalid signature")
+
     expiry = (datetime.now(timezone.utc) + timedelta(days=30)).isoformat()
     supabase.table("profiles").update({
         "is_subscriber": True,
         "subscription_expiry": expiry,
-        "haircuts_left": 2,
-        "beard_trims_left": 1
+        "haircuts_left": 1,
+        "beard_trims_left": 1,
+        "rewards_points": user.get("rewards_points", 0) + 50 # Bonus points for subscribing
     }).eq("id", user["id"]).execute()
-    return {"message": "Subscription activated!", "expiry": expiry}
+    return {"message": "Membership activated!", "expiry": expiry}
 
 # ── Admin ─────────────────────────────────────────────────────────────────────
 @api_router.get("/admin/stats")

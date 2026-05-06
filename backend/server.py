@@ -739,6 +739,8 @@ async def process_expired(request: Request):
     return {"transferred": count, "message": f"{count} advance payment(s) moved to wallets"}
 
 # ── App setup ─────────────────────────────────────────────────────────────────
+import traceback
+
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
     origin = request.headers.get("origin", "*")
@@ -754,11 +756,22 @@ async def add_cors_header(request: Request, call_next):
     try:
         response = await call_next(request)
     except Exception as e:
-        logger.error(f"Global error: {str(e)}")
+        stack = traceback.format_exc()
+        logger.error(f"Global error: {str(e)}\n{stack}")
         from fastapi.responses import JSONResponse
-        response = JSONResponse(
+        return JSONResponse(
             status_code=500,
-            content={"detail": str(e), "type": "GlobalError"}
+            content={
+                "detail": str(e), 
+                "stack": stack,
+                "type": "GlobalError"
+            },
+            headers={
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Methods": "*",
+                "Access-Control-Allow-Headers": "*",
+                "Access-Control-Allow-Credentials": "true"
+            }
         )
         
     response.headers["Access-Control-Allow-Origin"] = origin

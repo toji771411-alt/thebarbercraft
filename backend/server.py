@@ -283,7 +283,12 @@ async def create_booking(data: BookingIn, request: Request):
     if data.slot_type != "right_now":
         existing_booking = supabase.table("bookings").select("*").eq("date", data.date).eq("time_slot", data.time_slot).eq("slot_type", data.slot_type).in_("status", ["pending_payment", "confirmed"]).execute()
         if existing_booking.data:
-            raise HTTPException(400, "Slot already booked")
+            b = existing_booking.data[0]
+            if b["status"] == "pending_payment" and b["user_id"] == user["id"]:
+                # Clean up the ghost pending booking so they can try again
+                supabase.table("bookings").delete().eq("booking_id", b["booking_id"]).execute()
+            else:
+                raise HTTPException(400, "Slot already booked")
 
     bid = str(uuid.uuid4())
     status = "pending_approval" if data.slot_type == "right_now" else "pending_payment"

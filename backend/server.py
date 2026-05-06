@@ -776,8 +776,8 @@ async def process_expired(request: Request):
 # ── App setup ─────────────────────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "https://thebarbercraft.com", "https://www.thebarbercraft.com"],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )

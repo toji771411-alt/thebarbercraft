@@ -115,14 +115,16 @@ REDEMPTIONS = {
     "facial": {"name": "Rejuvenating Facial", "points": 300},
     "surprise_gift": {"name": "Exclusive Surprise Gift", "points": 400},
 }
-# Tue-Sun: 9:00 AM - 10:30 PM
-STD_TUE_SUN = ["09:00","10:00","11:00","12:00","13:00","14:00","15:00",
-                "16:00","17:00","18:00","19:00","20:00","21:00","22:00"]
+# Tue-Sun: 9:00 AM - 10:00 PM (45-min slots, 3-4 PM Power Break)
+STD_TUE_SUN = [
+    "09:00", "09:45", "10:30", "11:15", "12:00", "12:45", "13:30", "14:15",
+    "16:00", "16:45", "17:30", "18:15", "19:00", "19:45", "20:30", "21:15"
+]
 # Mon: 4:00 PM - 8:30 PM
-STD_MON     = ["16:00","17:00","18:00","19:00","20:00"]
-# Emergency Slots
-EMRG_AM     = ["08:00"] # 8:00 AM - 9:00 AM
-EMRG_PM     = ["22:30"] # 10:30 PM - 11:30 PM
+STD_MON     = ["16:00", "16:45", "17:30", "18:15", "19:00", "19:45"]
+# Emergency Slots (Updated to match 45-min rhythm)
+EMRG_AM     = ["08:15"] # 8:15 AM - 9:00 AM
+EMRG_PM     = ["22:00"] # 10:00 PM - 10:45 PM
 
 # ── Auth routes ───────────────────────────────────────────────────────────────
 class RegisterIn(BaseModel):

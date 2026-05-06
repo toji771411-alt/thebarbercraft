@@ -23,7 +23,8 @@ from supabase import create_client, Client
 
 supabase_url = get_env('SUPABASE_URL')
 supabase_key = get_env('SUPABASE_KEY')
-supabase_service_role = get_env('SUPABASE_SERVICE_ROLE')
+# Use SUPABASE_KEY as a fallback for service role if needed
+supabase_service_role = os.environ.get('SUPABASE_SERVICE_ROLE', supabase_key)
 
 supabase: Client = create_client(supabase_url, supabase_service_role)
 
@@ -317,7 +318,7 @@ async def create_booking(data: BookingIn, request: Request):
         "order_id": None, "rebook_deadline": None
     }
     res = supabase.table("bookings").insert(doc).execute()
-    return res.data[0]
+    return doc
 
 @api_router.get("/bookings")
 async def my_bookings(request: Request):

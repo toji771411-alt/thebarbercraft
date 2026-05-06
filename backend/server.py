@@ -774,14 +774,14 @@ async def process_expired(request: Request):
     return {"transferred": count, "message": f"{count} advance payment(s) moved to wallets"}
 
 # ── App setup ─────────────────────────────────────────────────────────────────
-app.include_router(api_router)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=False,
+    allow_origins=["http://localhost:3000", "https://thebarbercraft.com", "https://www.thebarbercraft.com"],
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(api_router)
 
 @app.on_event("startup")
 async def startup():

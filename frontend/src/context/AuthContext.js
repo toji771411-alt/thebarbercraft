@@ -149,5 +149,6 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => useContext(AuthContext);
 
-const API = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const API = process.env.REACT_APP_API_URL || 'https://barber-craft-backend.onrender.com/api';
+console.log('Using API Backend at:', API);
 export { API };

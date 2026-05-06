@@ -1,5 +1,5 @@
 import axios from 'axios';
-const BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+const BASE = process.env.REACT_APP_API_URL || 'https://barber-craft-backend.onrender.com/api';
 let authToken = localStorage.getItem('barber_token');
 
 export const setAuthToken = (token) => {

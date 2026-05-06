@@ -61,8 +61,6 @@ export function AuthProvider({ children }) {
   }, [session]);
 
   const login = async (email, password) => {
-    console.log('Attempting login for:', email);
-    
     // Create a timeout promise
     const timeout = new Promise((_, reject) => 
       setTimeout(() => reject(new Error('Login timed out. Please check your internet connection or try again.')), 10000)
@@ -76,18 +74,14 @@ export function AuthProvider({ children }) {
       ]);
 
       if (error) {
-        console.error('Login error:', error.message);
         throw error;
       }
       
-      console.log('Auth successful, fetching profile...');
       const profile = await fetchProfile(data.user.id);
       const fullUser = { ...data.user, ...profile };
       setUser(fullUser);
-      console.log('Login complete!');
       return fullUser;
     } catch (err) {
-      console.error('Login failed:', err.message);
       throw err;
     }
   };
@@ -150,5 +144,4 @@ export function AuthProvider({ children }) {
 export const useAuth = () => useContext(AuthContext);
 
 const API = process.env.REACT_APP_API_URL || 'https://barber-craft-backend.onrender.com/api';
-console.log('Using API Backend at:', API);
 export { API };

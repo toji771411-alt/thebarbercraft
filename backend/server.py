@@ -137,33 +137,15 @@ class LoginIn(BaseModel):
 @api_router.post("/auth/register")
 async def register(data: RegisterIn):
     email = data.email.lower()
-    if await db.users.find_one({"email": email}):
-        raise HTTPException(400, "Email already registered")
-    doc = {
-        "name": data.name, "email": email, "phone": data.phone,
-        "password_hash": hash_pw(data.password), "role": "customer",
-        "wallet_balance": 0.0, "rewards_points": 0,
-        "created_at": datetime.now(timezone.utc),
-    }
-    r = await db.users.insert_one(doc)
-    uid = str(r.inserted_id)
-    token = make_token(uid, email, "customer")
-    return {"token": token, "user": {"id": uid, "name": data.name, "email": email,
-            "role": "customer", "wallet_balance": 0.0, "rewards_points": 0, "phone": data.phone}}
+    # Note: Supabase Auth handles registration. This is just for the profile.
+    # In a full setup, this would be handled by supabase.auth.sign_up
+    return {"message": "Please use Supabase Auth for registration"}
 
 @api_router.post("/auth/login")
 async def login(data: LoginIn):
     email = data.email.lower()
-    u = await db.users.find_one({"email": email})
-    if not u or not check_pw(data.password, u["password_hash"]):
-        raise HTTPException(401, "Invalid email or password")
-    uid = str(u["_id"])
-    token = make_token(uid, email, u.get("role", "customer"))
-    return {"token": token, "user": {
-        "id": uid, "name": u.get("name"), "email": email, "role": u.get("role","customer"),
-        "wallet_balance": u.get("wallet_balance", 0.0),
-        "rewards_points": u.get("rewards_points", 0), "phone": u.get("phone"),
-    }}
+    # Note: Supabase Auth handles login.
+    return {"message": "Please use Supabase Auth for login"}
 
 @api_router.get("/auth/me")
 async def me(request: Request):
@@ -524,55 +506,38 @@ async def apply_redemption(data: ApplyRedemptionIn, request: Request):
         raise HTTPException(400, "Redemption already used or applied")
 
     # Find booking
-    booking = await db.bookings.find_one({"booking_id": data.booking_id, "user_id": user["id"]})
+    booking_res = supabase.table("bookings").select("*").eq("booking_id", data.booking_id).eq("user_id", user["id"]).single().execute()
+    booking = booking_res.data
     if not booking:
         raise HTTPException(404, "Booking not found")
     if booking["status"] not in ["confirmed", "pending_payment"]:
         raise HTTPException(400, "Cannot add reward to this booking status")
 
     # Update booking with the addon
-    # We use the reward_id as the addon name if it matches our addon list
     addon_id = red["reward_id"]
     price_to_deduct = ADDONS.get(addon_id, 0)
     
-    upd = {"$addToSet": {"addon_services": addon_id}}
+    addons = booking.get("addon_services", [])
+    if addon_id not in addons:
+        addons.append(addon_id)
     
-    # If booking is pending payment, we can reduce the total
+    upd = {"addon_services": addons}
+    
     if booking["status"] == "pending_payment":
-        # We only deduct if the addon wasn't already there (to avoid double deduction)
-        # But $addToSet won't add it if it's there. 
-        # Let's check if it was already in addon_services
-        if addon_id not in booking.get("addon_services", []):
-            # The user is applying a reward for an addon they MIGHT have already selected
-            # Or they are adding a new addon via reward.
-            # If they already selected it, the price was already in total_amount.
-            # If they didn't, we are adding it for free, so total_amount stays same but addon is added.
-            # Wait, the logic should be: 
-            # 1. If addon is already in booking.addon_services, it means they selected it and it's in the total.
-            #    In this case, we deduct the price from total.
-            # 2. If addon is NOT in booking.addon_services, we add it but don't increase total.
-            
-            if addon_id in booking.get("addon_services", []):
-                new_total = max(0, booking["total_amount"] - price_to_deduct)
-                upd["$set"] = {
-                    "total_amount": new_total,
-                    "advance_amount": new_total, # Assuming 100% prepaid
-                    "updated_at": datetime.now(timezone.utc)
-                }
-        else:
-            # Addon already there, just apply reward to reduce price
-            new_total = max(0, booking["total_amount"] - price_to_deduct)
-            upd["$set"] = {
-                "total_amount": new_total,
-                "advance_amount": new_total,
-                "updated_at": datetime.now(timezone.utc)
-            }
+        new_total = max(0, booking["total_amount"] - price_to_deduct)
+        upd["total_amount"] = float(new_total)
+        upd["advance_amount"] = float(new_total)
     
-    await db.bookings.update_one({"booking_id": data.booking_id}, upd)
+    upd["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    supabase.table("bookings").update(upd).eq("booking_id", data.booking_id).execute()
     
     # Mark redemption as applied
-    await db.reward_redemptions.update_one({"_id": ObjectId(data.redemption_id)},
-        {"$set": {"status": "applied", "booking_id": data.booking_id, "updated_at": datetime.now(timezone.utc)}})
+    supabase.table("reward_redemptions").update({
+        "status": "applied", 
+        "booking_id": data.booking_id, 
+        "updated_at": datetime.now(timezone.utc).isoformat()
+    }).eq("id", data.redemption_id).execute()
 
     return {"message": f"Reward '{red['reward_name']}' applied to booking {data.booking_id}"}
 

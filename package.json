@@ -26,5 +26,8 @@
   "homepage": "https://github.com/toji771411-alt/barber-1#readme",
   "devDependencies": {
     "concurrently": "^9.2.1"
+  },
+  "dependencies": {
+    "pg": "^8.20.0"
   }
 }

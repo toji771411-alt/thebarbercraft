@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '../supabaseClient';
+import { setAuthToken } from '../utils/api';
 
 const AuthContext = createContext(null);
 
@@ -27,11 +28,13 @@ export function AuthProvider({ children }) {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) {
+        setAuthToken(session.access_token);
         fetchProfile(session.user.id).then(profile => {
           setUser({ ...session.user, ...profile });
           setLoading(false);
         });
       } else {
+        setAuthToken(null);
         setLoading(false);
       }
     });
@@ -40,9 +43,11 @@ export function AuthProvider({ children }) {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setSession(session);
       if (session) {
+        setAuthToken(session.access_token);
         const profile = await fetchProfile(session.user.id);
         setUser({ ...session.user, ...profile });
       } else {
+        setAuthToken(null);
         setUser(null);
       }
       setLoading(false);

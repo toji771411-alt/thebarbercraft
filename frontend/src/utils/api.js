@@ -1,10 +1,13 @@
 import axios from 'axios';
+const BASE = process.env.REACT_APP_API_URL || 'http://localhost:8000/api';
+let authToken = localStorage.getItem('barber_token');
 
-const BASE = `${process.env.REACT_APP_BACKEND_URL}/api`;
+export const setAuthToken = (token) => {
+  authToken = token;
+};
 
 const headers = () => {
-  const t = localStorage.getItem('barber_token');
-  return t ? { Authorization: `Bearer ${t}` } : {};
+  return authToken ? { Authorization: `Bearer ${authToken}` } : {};
 };
 
 const api = {

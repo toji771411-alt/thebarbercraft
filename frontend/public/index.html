@@ -32,8 +32,47 @@
         work correctly both with client-side routing and a non-root public URL.
         Learn how to configure a non-root public URL by running `npm run build`.
         -->
-        <title>The Barber Craft | Premium Grooming & Signature Haircuts</title>
-        <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
+    <title>The Barber Craft | Premium Grooming & Signature Haircuts</title>
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BarberShop",
+      "name": "The Barber Craft",
+      "url": "https://thebarbercraft.com",
+      "logo": "https://thebarbercraft.com/logo.png",
+      "image": "https://thebarbercraft.com/og-image.jpg",
+      "description": "Premium grooming and haircutting experience in Kalyan, Mumbai. Book online with 100% prepaid slots and zero waiting times.",
+      "address": {
+        "@type": "PostalAddress",
+        "streetAddress": "Near Chhatri Bungalow, Opp Vaibhav Hospital, Rambaug-4",
+        "addressLocality": "Kalyan",
+        "addressRegion": "Mumbai",
+        "postalCode": "421301",
+        "addressCountry": "IN"
+      },
+      "geo": {
+        "@type": "GeoCoordinates",
+        "latitude": 19.2435,
+        "longitude": 73.1350
+      },
+      "openingHoursSpecification": [
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": ["Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"],
+          "opens": "09:00",
+          "closes": "22:00"
+        },
+        {
+          "@type": "OpeningHoursSpecification",
+          "dayOfWeek": "Monday",
+          "opens": "09:00",
+          "closes": "22:00"
+        }
+      ],
+      "telephone": "+918591017143"
+    }
+    </script>
+    <script>window.addEventListener("error",function(e){if(e.error instanceof DOMException&&e.error.name==="DataCloneError"&&e.message&&e.message.includes("PerformanceServerTiming")){e.stopImmediatePropagation();e.preventDefault()}},true);</script>
 
     </head>
     <body>
